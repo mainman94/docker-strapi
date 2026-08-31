@@ -31,7 +31,7 @@ jobs:
 
       - name: Get Docker Hub token from OpenBao
         id: vault
-        uses: hashicorp/vault-action@v3
+        uses: hashicorp/vault-action@v4
         with:
           url: https://vault.hauptmann.dev
           method: jwt
