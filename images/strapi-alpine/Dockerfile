@@ -7,7 +7,7 @@ FROM node:${NODE_VERSION}-alpine AS builder
 ARG STRAPI_VERSION
 
 RUN apk add --no-cache python3 make g++ && \
-    npm install -g yarn @strapi/strapi@${STRAPI_VERSION}
+    npm install -g --force yarn @strapi/strapi@${STRAPI_VERSION}
 
 # Production stage: copy only what's needed
 FROM node:${NODE_VERSION}-alpine

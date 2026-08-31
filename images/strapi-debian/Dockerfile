@@ -6,7 +6,7 @@ ARG STRAPI_VERSION=5.52.2
 FROM node:${NODE_VERSION}-trixie-slim AS builder
 ARG STRAPI_VERSION
 
-RUN npm install -g yarn @strapi/strapi@${STRAPI_VERSION}
+RUN npm install -g --force yarn @strapi/strapi@${STRAPI_VERSION}
 
 # Production stage: copy CLI, install build deps
 FROM node:${NODE_VERSION}-trixie-slim
