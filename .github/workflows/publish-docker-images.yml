@@ -63,7 +63,7 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/strapi:latest-alpine
 
       - name: Docker Hub Description (README.md)
-        uses: peter-evans/dockerhub-description@v2
+        uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
