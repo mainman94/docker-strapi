@@ -1,25 +1,34 @@
 # BASE
-ARG NODE_VERSION=18
-FROM node:${NODE_VERSION}-alpine AS base-alpine
+ARG NODE_VERSION=24
+ARG STRAPI_VERSION=5.52.2
+
+# Build stage: install CLI with build deps
+FROM node:${NODE_VERSION}-alpine AS builder
+ARG STRAPI_VERSION
+
+RUN apk add --no-cache python3 make g++ && \
+    npm install -g yarn @strapi/strapi@${STRAPI_VERSION}
+
+# Production stage: copy only what's needed
+FROM node:${NODE_VERSION}-alpine
+ARG STRAPI_VERSION
+ENV STRAPI_VERSION=${STRAPI_VERSION}
+
+# Copy entire /usr/local from builder (preserves symlinks)
+COPY --from=builder /usr/local /usr/local
+
 EXPOSE 1337
 
-FROM base-alpine
-
-ARG STRAPI_VERSION=latest
-
-RUN yarn global add @strapi/strapi@${STRAPI_VERSION}
-
-
-RUN mkdir -p /srv/app && chown 1000:1000 -R /srv/app
+RUN addgroup -S appuser && adduser -S -G appuser appuser && \
+    mkdir -p /srv/app && chown appuser:appuser -R /srv/app
 
 WORKDIR /srv/app
-
 VOLUME /srv/app
 
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
+RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 
-RUN chmod 777 /usr/local/bin/docker-entrypoint.sh && ln -s /usr/local/bin/docker-entrypoint.sh
+USER appuser
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-
 CMD ["strapi"]
