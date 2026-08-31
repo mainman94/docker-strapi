@@ -6,33 +6,44 @@ if [ "$*" = "strapi" ]; then
   if [ ! -f "package.json" ]; then
 
     DATABASE_CLIENT=${DATABASE_CLIENT:-sqlite}
-
     EXTRA_ARGS=${EXTRA_ARGS}
 
-    echo "Using strapi $(strapi version)"
+    echo "Using strapi v$STRAPI_VERSION"
     echo "No project found at /srv/app. Creating a new strapi project ..."
 
-    DOCKER=true strapi new . --no-run \
-      --dbclient=$DATABASE_CLIENT \
-      --dbhost=$DATABASE_HOST \
-      --dbport=$DATABASE_PORT \
-      --dbname=$DATABASE_NAME \
-      --dbusername=$DATABASE_USERNAME \
-      --dbpassword=$DATABASE_PASSWORD \
-      --dbssl=$DATABASE_SSL \
-      $EXTRA_ARGS
+    if [ "${STRAPI_VERSION#5}" != "$STRAPI_VERSION" ]; then
+      DOCKER=true npx create-strapi-app@${STRAPI_VERSION} . --no-run \
+        --dbclient=$DATABASE_CLIENT \
+        --dbhost=$DATABASE_HOST \
+        --dbport=$DATABASE_PORT \
+        --dbname=$DATABASE_NAME \
+        --dbusername=$DATABASE_USERNAME \
+        --dbpassword=$DATABASE_PASSWORD \
+        --dbssl=$DATABASE_SSL \
+        $EXTRA_ARGS
+    else
+      DOCKER=true strapi new . --no-run \
+        --dbclient=$DATABASE_CLIENT \
+        --dbhost=$DATABASE_HOST \
+        --dbport=$DATABASE_PORT \
+        --dbname=$DATABASE_NAME \
+        --dbusername=$DATABASE_USERNAME \
+        --dbpassword=$DATABASE_PASSWORD \
+        --dbssl=$DATABASE_SSL \
+        $EXTRA_ARGS
+    fi
 
   elif [ ! -d "node_modules" ] || [ ! "$(ls -qAL node_modules 2>/dev/null)" ]; then
 
     if [ -f "yarn.lock" ]; then
 
       echo "Node modules not installed. Installing using yarn ..."
-      yarn install --prod --silent
+      yarn install --prod || { echo "Yarn install failed"; exit 1; }
 
     else
 
       echo "Node modules not installed. Installing using npm ..."
-      npm install --only=prod --silent
+      npm install --only=prod || { echo "NPM install failed"; exit 1; }
 
     fi
 
@@ -45,7 +56,7 @@ if [ "$*" = "strapi" ]; then
   fi
 
   echo "Starting your app (with ${STRAPI_MODE:-develop})..."
-  exec strapi "${STRAPI_MODE:-develop}"
+  exec ./node_modules/.bin/strapi "${STRAPI_MODE:-develop}"
 
 else
   exec "$@"
