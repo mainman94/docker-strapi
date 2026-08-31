@@ -1,10 +1,17 @@
 ###################
-# ENV VARS:
-# - PAT (generated at Personal Access Tokens - with workflow access checked)
+# PAT comes from OpenBao (homelab/data/prod/github, key PAT) via GitHub
+# Actions OIDC — see homelab/terraform/openbao/github-actions-vault-auth.tf,
+# role "gha-docker-strapi". A user-scoped PAT (not GITHUB_TOKEN) is required
+# here because a GITHUB_TOKEN-triggered push does not cascade into other
+# workflow runs, and this commit needs to trigger publish-docker-images.yml.
 ###################
 
 name: Check for new releases
 # Check automatically for new releases (new version)
+
+permissions:
+  id-token: write
+  contents: read
 
 on:
   schedule:
@@ -15,15 +22,26 @@ jobs:
   get-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Get PAT from OpenBao
+        id: vault
+        uses: hashicorp/vault-action@v4
         with:
-          token: ${{ secrets.PAT }}
+          url: https://vault.hauptmann.dev
+          method: jwt
+          path: github-actions
+          role: gha-docker-strapi
+          secrets: |
+            homelab/data/prod/github PAT | PAT
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.vault.outputs.PAT }}
 
       - name: Fetch release version
         id: fetch-version
         run: |
           curl -sL https://raw.githubusercontent.com/strapi/strapi/main/packages/core/strapi/package.json | jq -r ".version" > release-versions/strapi-latest.txt
-          echo ::set-output name=version::$(cat release-versions/strapi-latest.txt)
+          echo "version=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
 
       - uses: stefanzweifel/git-auto-commit-action@v7
         with:
