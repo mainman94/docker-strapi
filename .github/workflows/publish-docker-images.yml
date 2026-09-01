@@ -48,8 +48,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.DOCKER_USERNAME }}/strapi:${{ steps.vars.outputs.tag }}
-            ${{ env.DOCKER_USERNAME }}/strapi:latest
+            ${{ env.DOCKER_USERNAME }}/strapi:debian-slim-${{ steps.vars.outputs.tag }}
+            ${{ env.DOCKER_USERNAME }}/strapi:debian-slim-latest
 
       - name: Build (alpine)
         uses: docker/build-push-action@v7
