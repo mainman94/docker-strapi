@@ -12,3 +12,7 @@ pinned by the image — override it at runtime with `docker run --user
 ownership.
 
 Published as `dockerha08/strapi:alpine-<version>` / `alpine-latest`.
+
+In production, the entrypoint builds the admin panel when
+`dist/build/index.html` is missing. The build uses a 2048 MB Node.js heap by
+default; override it with `STRAPI_BUILD_MAX_OLD_SPACE_SIZE` when needed.
