@@ -1,7 +1,8 @@
 ###########
-# Docker Hub PAT comes from OpenBao (homelab/data/prod/docker, key STRAPI_TOKEN)
-# via GitHub Actions OIDC — see homelab/terraform/openbao/github-actions-vault-auth.tf,
-# role "gha-docker-strapi". Username is public (Docker Hub namespace), not secret.
+# Docker Hub PAT: repo secret DOCKER_TOKEN (Cloudflare Bot Fight Mode blocks
+# GitHub Actions runners from reaching vault.hauptmann.dev, so the OpenBao
+# OIDC route doesn't work here). Username is public (Docker Hub namespace),
+# not secret.
 ###########
 
 name: Publish Docker Image
@@ -14,10 +15,6 @@ on:
     paths:
       - "release-versions/*"
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,17 +26,6 @@ jobs:
         id: vars
         run: echo "tag=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
 
-      - name: Get Docker Hub token from OpenBao
-        id: vault
-        uses: hashicorp/vault-action@v4
-        with:
-          url: https://vault.hauptmann.dev
-          method: jwt
-          path: github-actions
-          role: gha-docker-strapi
-          secrets: |
-            homelab/data/prod/docker STRAPI_TOKEN | DOCKER_TOKEN
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
@@ -50,7 +36,7 @@ jobs:
         uses: docker/login-action@v4
         with:
           username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ steps.vault.outputs.DOCKER_TOKEN }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build (default => debian)
         uses: docker/build-push-action@v7
@@ -82,7 +68,7 @@ jobs:
         uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ steps.vault.outputs.DOCKER_TOKEN }}
+          password: ${{ secrets.DOCKER_TOKEN }}
           repository: ${{ env.DOCKER_USERNAME }}/strapi
           readme-filepath: README.md
 
