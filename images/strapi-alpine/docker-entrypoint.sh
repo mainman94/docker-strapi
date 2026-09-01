@@ -64,6 +64,12 @@ if [ "$*" = "strapi" ]; then
 
   if [ "$NODE_ENV" = "production" ]; then
     STRAPI_MODE="start"
+
+    if [ ! -f "dist/build/index.html" ]; then
+      echo "Admin panel build not found. Building with a ${STRAPI_BUILD_MAX_OLD_SPACE_SIZE:-2048} MB Node.js heap ..."
+      NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=${STRAPI_BUILD_MAX_OLD_SPACE_SIZE:-2048}" \
+        npm run build || { echo "Admin panel build failed"; exit 1; }
+    fi
   elif [ "$NODE_ENV" = "development" ]; then
     STRAPI_MODE="develop"
   fi
