@@ -5,6 +5,9 @@
 
 name: Create new release manually
 
+permissions:
+  contents: read # the push goes through the PAT stored by actions/checkout
+
 on:
   workflow_dispatch:
     inputs:

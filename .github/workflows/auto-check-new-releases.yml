@@ -9,6 +9,9 @@
 name: Check for new releases
 # Check automatically for new releases (new version)
 
+permissions:
+  contents: read # pushes go through the PAT stored by actions/checkout
+
 on:
   schedule:
     - cron: "0 0 */1 * *"
@@ -22,16 +25,32 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
 
+      # Validate before writing: a failed request or a changed payload would
+      # otherwise put an empty value or "null" into release-versions/, and the
+      # resulting commit triggers a publish that builds create-strapi-app@null.
       - name: Fetch release version
         id: fetch-version
         run: |
-          curl -sL https://raw.githubusercontent.com/strapi/strapi/main/packages/core/strapi/package.json | jq -r ".version" > release-versions/strapi-latest.txt
-          echo "version=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
+          version=$(curl -sSfL https://raw.githubusercontent.com/strapi/strapi/main/packages/core/strapi/package.json | jq -er ".version")
+          case "$version" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::unexpected strapi version: '$version'"; exit 1 ;;
+          esac
+          echo "$version" > release-versions/strapi-latest.txt
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Fetch node base image digests
         run: |
-          curl -sL "https://hub.docker.com/v2/repositories/library/node/tags/24-alpine" | jq -r ".digest" > release-versions/node-alpine-digest.txt
-          curl -sL "https://hub.docker.com/v2/repositories/library/node/tags/24-trixie-slim" | jq -r ".digest" > release-versions/node-debian-digest.txt
+          for entry in "24-alpine:node-alpine-digest.txt" "24-trixie-slim:node-debian-digest.txt"; do
+            tag=${entry%%:*}
+            file=${entry#*:}
+            digest=$(curl -sSfL "https://hub.docker.com/v2/repositories/library/node/tags/$tag" | jq -er ".digest")
+            case "$digest" in
+              sha256:*) ;;
+              *) echo "::error::unexpected digest for node:$tag: '$digest'"; exit 1 ;;
+            esac
+            echo "$digest" > "release-versions/$file"
+          done
 
       - uses: stefanzweifel/git-auto-commit-action@v7
         with:
