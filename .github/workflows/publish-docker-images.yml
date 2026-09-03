@@ -10,6 +10,9 @@ name: Publish Docker Image
 env:
   DOCKER_USERNAME: dockerha08
 
+permissions:
+  contents: write # finalize job creates the GitHub release
+
 on:
   push:
     paths:
@@ -35,7 +38,9 @@ jobs:
 
       - name: Get the version
         id: vars
-        run: echo "tag=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "tag=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -56,6 +61,8 @@ jobs:
           build-args: |
             STRAPI_VERSION=${{ steps.vars.outputs.tag }}
             NODE_VERSION=24
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=${{ steps.vars.outputs.build_date }}
           load: true
           tags: strapi-${{ matrix.variant }}-test
           cache-from: type=gha,scope=${{ matrix.variant }}
@@ -71,8 +78,12 @@ jobs:
           build-args: |
             STRAPI_VERSION=${{ steps.vars.outputs.tag }}
             NODE_VERSION=24
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=${{ steps.vars.outputs.build_date }}
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: mode=max
+          sbom: true
           tags: |
             ${{ env.DOCKER_USERNAME }}/strapi:${{ matrix.tag_prefix }}-${{ steps.vars.outputs.tag }}
             ${{ env.DOCKER_USERNAME }}/strapi:${{ matrix.tag_prefix }}-latest
@@ -98,13 +109,18 @@ jobs:
           repository: ${{ env.DOCKER_USERNAME }}/strapi
           readme-filepath: README.md
 
+      # actions/create-release is archived; gh ships on the runner. Re-running
+      # the workflow for an already-released version must not fail the job.
       - name: Create Release in GitHub
-        id: create_release
-        uses: actions/create-release@v1
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        with:
-          tag_name: v${{steps.vars.outputs.tag}}
-          release_name: Release ${{steps.vars.outputs.tag}}
-          body: strapi v${{steps.vars.outputs.tag}}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.vars.outputs.tag }}
+        run: |
+          gh release create "v$TAG" \
+            --title "Release $TAG" \
+            --notes "Strapi v$TAG
+
+          Images:
+          - \`${DOCKER_USERNAME}/strapi:alpine-$TAG\`
+          - \`${DOCKER_USERNAME}/strapi:debian-slim-$TAG\`"

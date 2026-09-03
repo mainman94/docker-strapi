@@ -1,23 +1,34 @@
-# strapi containerized
+<div align="center">
 
-> Docker images for Strapi v5, fork of [naskio/docker-strapi](https://github.com/naskio/docker-strapi)
+<img src="https://raw.githubusercontent.com/mainman94/docker-strapi/main/assets/PNG.logo.purple.dark.png" alt="Strapi" width="180">
 
-API creation made simple, secure and fast. The most advanced open-source Content Management Framework to build powerful
-API with no effort.
+# docker-strapi
 
-[GitHub repository](https://github.com/mainman94/docker-strapi)
+**Docker images for [Strapi](https://strapi.io) v5 — Alpine and Debian slim, multi-arch, rebuilt on every upstream release.**
 
-[Docker Hub](https://hub.docker.com/r/dockerha08/strapi)
+[![Docker Pulls](https://img.shields.io/docker/pulls/dockerha08/strapi?logo=docker&logoColor=white)](https://hub.docker.com/r/dockerha08/strapi)
+[![Image Size](https://img.shields.io/docker/image-size/dockerha08/strapi/alpine-latest?label=alpine%20size&logo=docker&logoColor=white)](https://hub.docker.com/r/dockerha08/strapi/tags)
+[![Strapi Version](https://img.shields.io/docker/v/dockerha08/strapi/alpine-latest?label=strapi&logo=strapi&logoColor=white)](https://hub.docker.com/r/dockerha08/strapi/tags)
+[![CI](https://github.com/mainman94/docker-strapi/actions/workflows/ci.yml/badge.svg)](https://github.com/mainman94/docker-strapi/actions/workflows/ci.yml)
+[![Publish](https://github.com/mainman94/docker-strapi/actions/workflows/publish-docker-images.yml/badge.svg)](https://github.com/mainman94/docker-strapi/actions/workflows/publish-docker-images.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/mainman94/docker-strapi/blob/main/LICENSE)
 
-Two variants: `images/strapi-alpine` (published as `dockerha08/strapi:alpine-<version>` /
-`alpine-latest`) and `images/strapi-debian` (published as `dockerha08/strapi:debian-slim-<version>`
-/ `debian-slim-latest`). See each variant's own README for specifics.
+[Docker Hub](https://hub.docker.com/r/dockerha08/strapi) · [GitHub](https://github.com/mainman94/docker-strapi) · [Strapi docs](https://docs.strapi.io/)
+
+</div>
 
 ---
 
-# Example
+## Quick start
 
-Using Docker Compose, create `docker-compose.yml` file with the following content:
+```shell
+docker run -d -p 1337:1337 -e NODE_ENV=development dockerha08/strapi:alpine-latest
+```
+
+Open <http://localhost:1337/admin>. The container scaffolds a fresh Strapi
+project with an SQLite database on first boot and starts it.
+
+With Compose, and a bind mount so the project survives the container:
 
 ```yaml
 services:
@@ -27,103 +38,135 @@ services:
       NODE_ENV: development # or production
     ports:
       - "1337:1337"
-    # volumes:
-    #   - ./app:/srv/app # mount an existing strapi project
+    volumes:
+      - ./app:/srv/app # scaffolded here on first boot, reused after
 ```
 
-or using Docker:
+Runnable examples: [SQLite](https://github.com/mainman94/docker-strapi/tree/main/examples/strapi-sqlite) · [PostgreSQL](https://github.com/mainman94/docker-strapi/tree/main/examples/strapi-postgres).
+
+## Tags
+
+| Tag | Base | Runs as | Notes |
+| --- | --- | --- | --- |
+| `alpine-latest` | `node:24-alpine` | `appuser` (non-root) | Smallest. Recommended. |
+| `alpine-<version>` | `node:24-alpine` | `appuser` (non-root) | Pinned to a Strapi release. |
+| `debian-slim-latest` | `node:24-trixie-slim` | `root` | glibc, for native modules Alpine trips on. |
+| `debian-slim-<version>` | `node:24-trixie-slim` | `root` | Pinned to a Strapi release. |
+
+`<version>` is the upstream Strapi version, e.g. `alpine-5.52.3`.
+
+Platforms: `linux/amd64`, `linux/arm64`. Every published image carries an
+SBOM and provenance attestation, plus OCI labels:
 
 ```shell
-docker run -d -p 1337:1337 -e NODE_ENV=development dockerha08/strapi:alpine-latest
+docker buildx imagetools inspect dockerha08/strapi:alpine-latest
+docker inspect dockerha08/strapi:alpine-latest --format '{{json .Config.Labels}}' | jq
 ```
 
----
+Variant details: [alpine](https://github.com/mainman94/docker-strapi/blob/main/images/strapi-alpine/README.md) ·
+[debian](https://github.com/mainman94/docker-strapi/blob/main/images/strapi-debian/README.md).
 
-# How to use ?
+## How it works
 
-This image allows you to create a new strapi project or run an existing strapi project.
+On start, the entrypoint looks at `/srv/app`:
 
-- for `$NODE_ENV = development`: The command that will run in your project
-  is [`strapi develop`](https://docs.strapi.io/developer-docs/latest/developer-resources/cli/CLI.html#strapi-develop).
-- for `$NODE_ENV = production`: The command that will run in your project
-  is [`strapi start`](https://docs.strapi.io/developer-docs/latest/developer-resources/cli/CLI.html#strapi-start).
+- **No `package.json`** → runs
+  [`create-strapi-app`](https://docs.strapi.io/dev-docs/cli#strapi-new) to
+  scaffold a project, configured from the `DATABASE_*` env vars below.
+- **Project present, no `node_modules`** → installs dependencies with yarn if
+  a `yarn.lock` exists, otherwise npm.
+- Then starts Strapi:
+  [`strapi develop`](https://docs.strapi.io/developer-docs/latest/developer-resources/cli/CLI.html#strapi-develop)
+  when `NODE_ENV=development`,
+  [`strapi start`](https://docs.strapi.io/developer-docs/latest/developer-resources/cli/CLI.html#strapi-start)
+  when `NODE_ENV=production` (building the admin panel first if
+  `dist/build/index.html` is missing).
 
-> The [Content-Type Builder](https://strapi.io/features/content-types-builder) plugin is disabled WHEN `$NODE_ENV = production`.
+> The [Content-Type Builder](https://strapi.io/features/content-types-builder)
+> is disabled when `NODE_ENV=production` — that is Strapi's behaviour, not the
+> image's.
 
-## Creating a new strapi project
+To run an **existing** project, mount it at `/srv/app`. Anything other than
+the default command is executed as-is, so `docker run ... dockerha08/strapi:alpine-latest sh`
+gives you a shell.
 
-When running this image, strapi will check if there is a project in the `/srv/app` folder of the container. If there is
-nothing then it will run
-[`create-strapi-app`](https://docs.strapi.io/dev-docs/cli#strapi-new) (v5) or
-[`strapi new`](https://docs.strapi.io/developer-docs/latest/developer-resources/cli/CLI.html#strapi-new) (pre-v5)
-in the container's `/srv/app` folder.
+## Environment variables
 
-This command creates a project with an SQLite database by default. Then starts it on port `1337`.
+Used when scaffolding a new project:
 
-**Environment variables**
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DATABASE_CLIENT` | `sqlite` | `sqlite`, `postgres` or `mysql` |
+| `DATABASE_HOST` | – | Database host |
+| `DATABASE_PORT` | – | Database port |
+| `DATABASE_NAME` | – | Database name |
+| `DATABASE_USERNAME` | – | Database user |
+| `DATABASE_PASSWORD` | – | Database password |
+| `DATABASE_SSL` | – | `true` / `false` |
+| `EXTRA_ARGS` | – | Extra flags passed to `create-strapi-app` |
 
-When creating a new project with this image you can pass database configuration via these environment variables:
+Used at runtime:
 
-- `DATABASE_CLIENT` a database provider supported by Strapi: `sqlite`, `postgres`, or `mysql`.
-- `DATABASE_HOST` database host.
-- `DATABASE_PORT` database port.
-- `DATABASE_NAME` database name.
-- `DATABASE_USERNAME` database username.
-- `DATABASE_PASSWORD` database password.
-- `DATABASE_SSL` boolean for SSL.
-- `EXTRA_ARGS` pass extra args to
-  the [`strapi new`](https://strapi.io/documentation/developer-docs/latest/developer-resources/cli/CLI.html#strapi-new).
+| Variable | Default | Description |
+| --- | --- | --- |
+| `NODE_ENV` | `development` | `development` → `strapi develop`, `production` → `strapi start` |
+| `STRAPI_BUILD_MAX_OLD_SPACE_SIZE` | `2048` | Node.js heap (MB) for the admin panel build |
 
-## Running an existing strapi project
+Strapi's own variables (`APP_KEYS`, `JWT_SECRET`, `ADMIN_JWT_SECRET`, …) are
+read from the project's `.env`; set them explicitly for anything long-lived.
 
-To run an existing project, you can mount the project folder in the container at `/srv/app`.
+## Deploying to production
 
----
-
-# Recommended way to deploy an existing strapi project to production using Docker
-
-To deploy an existing strapi project to production using Docker, it is recommended to build an image for your project
-based on [node v24](https://hub.docker.com/_/node).
-
-Example of Dockerfile:
+These images are built for scaffolding and development. For production, build
+an image **from your project** on top of [`node:24`](https://hub.docker.com/_/node):
 
 ```dockerfile
 FROM node:24
-# alternatively you can use FROM strapi/base:latest
 
-# Set up working directory
 WORKDIR /app
 
-# Copy package.json to root directory
-COPY package.json .
-
-# Copy yarn.lock to root directory
-COPY yarn.lock .
-
-# Install dependencies, but not generate a yarn.lock file and fail if an update is needed
+COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 
-# Copy strapi project files
 COPY favicon.ico ./favicon.ico
 COPY src/ src/
 COPY public/ public/
 COPY database/ database/
 COPY config/ config/
-# ...
 
-# Build admin panel
 RUN yarn build
 
-# Run on port 1337
 EXPOSE 1337
-
-# Start strapi server
 CMD ["yarn", "start"]
 ```
 
-# Official Documentation
+## Building locally
 
-- The official documentation of strapi is available on [https://docs.strapi.io/](https://docs.strapi.io/).
+```shell
+docker build -t strapi-alpine-test \
+  --build-arg STRAPI_VERSION="$(cat release-versions/strapi-latest.txt)" \
+  images/strapi-alpine
+./smoke-test.sh strapi-alpine-test
+```
 
-- The official strapi docker image is available on [GitHub](https://github.com/strapi/strapi-docker) (not yet upgraded
-  to v4).
+Build args: `NODE_VERSION` (default `24`), `STRAPI_VERSION`, plus `VCS_REF`
+and `BUILD_DATE` for the OCI labels.
+
+## Releases
+
+A daily workflow reads the latest Strapi version and the pinned `node:24`
+digests into `release-versions/`. Any change there triggers a build of both
+variants for both platforms, a smoke test on amd64, a push to Docker Hub and a
+GitHub release. Nothing is pushed that did not boot successfully first.
+
+## Contributing
+
+Issues and PRs welcome — see [CONTRIBUTING.md](https://github.com/mainman94/docker-strapi/blob/main/CONTRIBUTING.md),
+[SECURITY.md](https://github.com/mainman94/docker-strapi/blob/main/SECURITY.md) and the
+[Code of Conduct](https://github.com/mainman94/docker-strapi/blob/main/CODE_OF_CONDUCT.md).
+
+## License
+
+[MIT](https://github.com/mainman94/docker-strapi/blob/main/LICENSE). Fork of [naskio/docker-strapi](https://github.com/naskio/docker-strapi),
+which remains under its original copyright. Strapi is a trademark of Strapi
+Solutions SAS; this project is not affiliated with or endorsed by Strapi.

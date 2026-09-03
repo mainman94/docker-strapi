@@ -5,20 +5,23 @@
 
 name: Create new release manually
 
+permissions:
+  contents: read # the push goes through the PAT stored by actions/checkout
+
 on:
   workflow_dispatch:
     inputs:
       version:
         description: 'version'
         required: true
-        default: '4.0.0'
+        default: '5.0.0'
         type: string
 
 jobs:
   get-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}
 

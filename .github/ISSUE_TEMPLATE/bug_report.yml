@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in the image or entrypoint does not work
+labels: [bug]
+body:
+  - type: dropdown
+    id: variant
+    attributes:
+      label: Image variant
+      options:
+        - alpine
+        - debian-slim
+        - both
+    validations:
+      required: true
+  - type: input
+    id: tag
+    attributes:
+      label: Image tag
+      placeholder: dockerha08/strapi:alpine-5.52.3
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Host platform
+      placeholder: linux/amd64, Docker 27.3 on Ubuntu 24.04
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact `docker run` / compose file you used.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected vs. what happened
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Container logs
+      description: Output of `docker logs <container>`. Redact secrets.
+      render: shell

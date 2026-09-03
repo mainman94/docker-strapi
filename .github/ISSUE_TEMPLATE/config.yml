@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Strapi bug or question
+    url: https://github.com/strapi/strapi/issues
+    about: Issues with Strapi itself, not with these images.
+  - name: Strapi documentation
+    url: https://docs.strapi.io/
+    about: How to use Strapi.
+  - name: Security vulnerability
+    url: https://github.com/mainman94/docker-strapi/security/advisories/new
+    about: Report privately, not as a public issue.
