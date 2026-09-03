@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [alpine, debian]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: images/strapi-${{ matrix.variant }}/Dockerfile
+          config: .hadolint.yaml
+          failure-threshold: warning
+
+      - name: Lint shell scripts
+        run: |
+          shellcheck --severity=warning -e SC2086,SC2269 \
+            smoke-test.sh images/strapi-${{ matrix.variant }}/docker-entrypoint.sh
+
+      - name: Entrypoints must stay identical across variants
+        run: diff images/strapi-alpine/docker-entrypoint.sh images/strapi-debian/docker-entrypoint.sh
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [alpine, debian]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Get the version
+        id: vars
+        run: echo "tag=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Build (amd64)
+        uses: docker/build-push-action@v7
+        with:
+          context: ./images/strapi-${{ matrix.variant }}
+          build-args: |
+            STRAPI_VERSION=${{ steps.vars.outputs.tag }}
+            NODE_VERSION=24
+            VCS_REF=${{ github.sha }}
+          load: true
+          tags: strapi-${{ matrix.variant }}-test
+          cache-from: type=gha,scope=${{ matrix.variant }}
+
+      - name: Smoke test
+        run: ./smoke-test.sh strapi-${{ matrix.variant }}-test

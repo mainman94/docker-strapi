@@ -1,0 +1,9 @@
+# Base images are pinned by digest in release-versions/ and rebuilt on every
+# upstream release, so floating package versions are deliberate: a rebuild
+# should pick up the current security patches.
+ignored:
+  - DL3018 # apk: pin versions
+  - DL3008 # apt-get: pin versions
+  - DL3016 # npm: pin versions (strapi IS pinned, via STRAPI_VERSION)
+  - DL3066 # non-numeric user id (appuser is created in the image itself)
+  - DL3002 # last user root (the debian variant runs as root by design)
