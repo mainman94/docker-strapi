@@ -5,9 +5,8 @@ Published as `dockerha08/strapi:debian-slim-<strapi-version>` and
 `linux/arm64`.
 
 Base image: `node:24-trixie-slim`. Larger than the Alpine variant, but glibc-
-based — use it when a native dependency does not build or run on musl. Ships
-`gcc`, `g++`, `make` and `python3` so `npm install` works inside a mounted
-project.
+based — use it when a native dependency does not build or run on musl. No
+compiler toolchain is installed; native modules come from prebuilt binaries.
 
 ## Build args
 

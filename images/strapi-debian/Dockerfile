@@ -2,13 +2,6 @@
 ARG NODE_VERSION=24
 ARG STRAPI_VERSION=5.52.2
 
-# Build stage: install CLI only
-FROM node:${NODE_VERSION}-trixie-slim AS builder
-ARG STRAPI_VERSION
-
-RUN npm install -g --force yarn @strapi/strapi@${STRAPI_VERSION}
-
-# Production stage: copy CLI, install build deps
 FROM node:${NODE_VERSION}-trixie-slim
 ARG NODE_VERSION
 ARG STRAPI_VERSION
@@ -28,13 +21,11 @@ LABEL org.opencontainers.image.title="Strapi (Debian slim)" \
       org.opencontainers.image.vendor="mainman94" \
       org.opencontainers.image.base.name="docker.io/library/node:${NODE_VERSION}-trixie-slim"
 
-# Install build deps for npm install to work in mounted projects
+# Patch OS packages (CVE hygiene). No compiler toolchain: native modules come
+# from prebuilt binaries, same as the Alpine variant.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc g++ make python3 && \
+    apt-get upgrade -y && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Copy npm packages from builder
-COPY --from=builder /usr/local /usr/local
 
 # Clean cache
 RUN yarn cache clean && npm cache clean --force && rm -rf /usr/local/share/.cache
