@@ -11,27 +11,15 @@ if [ "$*" = "strapi" ]; then
     echo "Using strapi v$STRAPI_VERSION"
     echo "No project found at /srv/app. Creating a new strapi project ..."
 
-    if [ "${STRAPI_VERSION#5}" != "$STRAPI_VERSION" ]; then
-      DOCKER=true npx create-strapi-app@${STRAPI_VERSION} . --no-run --skip-cloud --non-interactive \
-        --dbclient=$DATABASE_CLIENT \
-        --dbhost=$DATABASE_HOST \
-        --dbport=$DATABASE_PORT \
-        --dbname=$DATABASE_NAME \
-        --dbusername=$DATABASE_USERNAME \
-        --dbpassword=$DATABASE_PASSWORD \
-        --dbssl=$DATABASE_SSL \
-        $EXTRA_ARGS
-    else
-      DOCKER=true strapi new . --no-run \
-        --dbclient=$DATABASE_CLIENT \
-        --dbhost=$DATABASE_HOST \
-        --dbport=$DATABASE_PORT \
-        --dbname=$DATABASE_NAME \
-        --dbusername=$DATABASE_USERNAME \
-        --dbpassword=$DATABASE_PASSWORD \
-        --dbssl=$DATABASE_SSL \
-        $EXTRA_ARGS
-    fi
+    DOCKER=true npx create-strapi-app@${STRAPI_VERSION} . --no-run --skip-cloud --non-interactive \
+      --dbclient=$DATABASE_CLIENT \
+      --dbhost=$DATABASE_HOST \
+      --dbport=$DATABASE_PORT \
+      --dbname=$DATABASE_NAME \
+      --dbusername=$DATABASE_USERNAME \
+      --dbpassword=$DATABASE_PASSWORD \
+      --dbssl=$DATABASE_SSL \
+      $EXTRA_ARGS
 
     # create-strapi-app writes DATABASE_FILENAME= (empty) into .env
     # regardless of DB client. Strapi's env() helper treats an explicitly

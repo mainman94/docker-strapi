@@ -2,14 +2,6 @@
 ARG NODE_VERSION=24
 ARG STRAPI_VERSION=5.52.2
 
-# Build stage: install CLI with build deps
-FROM node:${NODE_VERSION}-alpine AS builder
-ARG STRAPI_VERSION
-
-RUN apk add --no-cache python3 make g++ && \
-    npm install -g --force yarn @strapi/strapi@${STRAPI_VERSION}
-
-# Production stage: copy only what's needed
 FROM node:${NODE_VERSION}-alpine
 ARG NODE_VERSION
 ARG STRAPI_VERSION
@@ -29,8 +21,8 @@ LABEL org.opencontainers.image.title="Strapi (Alpine)" \
       org.opencontainers.image.vendor="mainman94" \
       org.opencontainers.image.base.name="docker.io/library/node:${NODE_VERSION}-alpine"
 
-# Copy entire /usr/local from builder (preserves symlinks)
-COPY --from=builder /usr/local /usr/local
+# Patch OS packages (CVE hygiene)
+RUN apk upgrade --no-cache
 
 EXPOSE 1337
 
