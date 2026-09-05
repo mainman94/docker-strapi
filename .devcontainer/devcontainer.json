@@ -12,7 +12,7 @@
     // pre-commit is a Python tool and builds the rest of the hook toolchain
     // (hadolint, shellcheck, shfmt, yamlfmt, gitleaks) into its own envs.
     "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.12",
+      "version": "3.14",
       "installTools": false
     },
     "ghcr.io/devcontainers/features/common-utils:2": {
