@@ -5,7 +5,7 @@
     // The whole repo is image builds and smoke tests, so a daemon is the
     // point. docker-in-docker keeps built test images out of the host's
     // image list.
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "version": "latest",
       "dockerDashComposeVersion": "v2"
     },
