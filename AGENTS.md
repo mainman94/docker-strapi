@@ -31,6 +31,7 @@ and the release flow in more detail.
 | `make build VARIANT=alpine` | Build one variant at the pinned Strapi version  |
 | `make smoke VARIANT=alpine` | Boot it and wait for a clean start               |
 | `make versions`             | Show what `release-versions/` currently pins     |
+| `make scan`                 | CVE scan the built images (advisory, same as CI) |
 | `make example-up EXAMPLE=strapi-postgres` | Run an example stack           |
 
 `.devcontainer/` provides Docker and the hook toolchain.
@@ -53,6 +54,22 @@ hygiene hooks. Two hooks are repo-specific:
 
 The build and the smoke test stay out of the hooks: they need a daemon and a
 few minutes. `make check` runs them.
+
+## Scanning
+
+`ci.yml` scans both built variants with trivy after the smoke test and
+uploads SARIF to the Security tab, one category per variant so the matrix
+legs do not overwrite each other. `make scan` runs the same scan locally
+against the images `make build` produced.
+
+It is **advisory on purpose**. The base images are pinned by digest in
+`release-versions/` and rebuilt on every upstream Strapi release precisely so
+a rebuild picks up current patches — failing the build on an unpatched
+upstream CVE would only stop that rebuild from shipping, which is backwards.
+`--ignore-unfixed` for the same reason.
+
+The publish workflow already emits an SBOM (`sbom: true`), so consumers can
+scan a published tag themselves.
 
 ## Conventions
 

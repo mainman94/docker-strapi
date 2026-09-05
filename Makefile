@@ -65,6 +65,15 @@ smoke: ## Boot the built image(s) and wait for a clean start
 		./smoke-test.sh $(TAG_PREFIX)-$$v-test; \
 	done
 
+.PHONY: scan
+scan: ## CVE scan the built image(s) — advisory, same as CI
+	@command -v trivy >/dev/null || { echo "trivy not on PATH — see .devcontainer" >&2; exit 1; }
+	@for v in $(TARGETS); do \
+		echo "==> scan $$v"; \
+		trivy image --scanners vuln --ignore-unfixed \
+			--severity CRITICAL,HIGH $(TAG_PREFIX)-$$v-test; \
+	done
+
 .PHONY: check
 check: lint build smoke ## Everything CI runs: lint, build both variants, smoke both
 
