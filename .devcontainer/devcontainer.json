@@ -1,0 +1,42 @@
+{
+  "name": "docker-strapi",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    // The whole repo is image builds and smoke tests, so a daemon is the
+    // point. docker-in-docker keeps built test images out of the host's
+    // image list.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "dockerDashComposeVersion": "v2"
+    },
+    // pre-commit is a Python tool and builds the rest of the hook toolchain
+    // (hadolint, shellcheck, shfmt, yamlfmt, gitleaks) into its own envs.
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installTools": false
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "timonwong.shellcheck",
+        "foxundermoon.shell-format",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true,
+        "files.eol": "\n",
+        "[shellscript]": { "editor.tabSize": 2 },
+        "yaml.format.enable": false
+      }
+    }
+  }
+}

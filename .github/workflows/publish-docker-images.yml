@@ -116,7 +116,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.vars.outputs.tag }}
-        run: |
+        run: |-
           gh release create "v$TAG" \
             --title "Release $TAG" \
             --notes "Strapi v$TAG
