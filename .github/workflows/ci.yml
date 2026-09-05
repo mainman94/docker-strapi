@@ -36,6 +36,10 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Uploading the trivy SARIF to the Security tab.
+      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -63,3 +67,26 @@ jobs:
 
       - name: Smoke test
         run: ./smoke-test.sh strapi-${{ matrix.variant }}-test
+
+      # These images are public on Docker Hub, so a CVE here is somebody
+      # else's problem to inherit. Advisory: the base images are pinned by
+      # digest and rebuilt on every upstream Strapi release precisely so a
+      # rebuild picks up current patches, and failing the build on an
+      # unpatched upstream CVE would only stop that rebuild from shipping.
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: strapi-${{ matrix.variant }}-test
+          format: sarif
+          output: trivy-${{ matrix.variant }}.sarif
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          scanners: vuln
+          exit-code: "0"
+
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-${{ matrix.variant }}.sarif
+          # Without a per-variant category the two matrix legs overwrite each
+          # other's results in the Security tab.
+          category: image-${{ matrix.variant }}

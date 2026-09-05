@@ -1,0 +1,11 @@
+# House YAML style, kept in step with the other repos in this homelab.
+#
+# retain_line_breaks: the example compose files and workflows use blank lines
+# between blocks. scan_folded_as_literal: a folded `run:` step in a workflow
+# keeps one line per line rather than being re-folded into one long line.
+formatter:
+  indent: 2
+  line_ending: lf
+  retain_line_breaks: true
+  scan_folded_as_literal: true
+  trim_trailing_whitespace: true
