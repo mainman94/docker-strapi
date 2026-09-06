@@ -26,6 +26,7 @@ and the release flow in more detail.
 | Command                     | What it does                                    |
 | --------------------------- | ------------------------------------------------ |
 | `make help`                 | List every target                               |
+| `make tools`                | Install the pinned toolchain from `mise.toml`   |
 | `make hooks`                | Install the git pre-commit hook (do this once)  |
 | `make check`                | What CI runs: lint, build both variants, smoke both |
 | `make build VARIANT=alpine` | Build one variant at the pinned Strapi version  |
@@ -103,6 +104,34 @@ cosign verify docker.io/dockerha08/strapi:alpine-latest \
 statement to this repository's attestation store
 (`gh attestation verify oci://docker.io/dockerha08/strapi:alpine-latest -R mainman94/docker-strapi`).
 Signing is by digest, never by tag: a tag can be moved, a digest cannot.
+
+## Agent tooling
+
+`.claude/` is checked in, so every agent working here starts from the same
+setup:
+
+- **`agents/image-reviewer.md`** — reviews Dockerfile, entrypoint and
+  publish-path changes for what actually reaches Docker Hub: image size,
+  provenance, the two-variant contract. These images are public, so a mistake
+  here ships to other people's machines.
+- **`skills/release/SKILL.md`** — the release path.
+- **Hooks** (`settings.json`): `check-entrypoints.sh` fires when either
+  `docker-entrypoint.sh` is written and catches the two drifting apart at the
+  edit rather than in CI; `guard-release-versions.sh` guards writes to
+  `release-versions/`, because a change there is what triggers a publish.
+
+## Merge requirements
+
+Four checks are required: `lint (alpine)`, `lint (debian)`, `build (alpine)`
+and `build (debian)`. The contexts are **job names** including the matrix leg —
+the ruleset lives in the `homelab` repo, so renaming a job or a matrix value in
+`ci.yml` without updating it there leaves every PR permanently `blocked`.
+
+Repository admins bypass the ruleset, on purpose:
+`auto-check-new-releases.yml` and `manual-release.yml` push straight to `main`
+with a PAT, and that push is what triggers a publish. A required status check
+would reject it — the checks cannot have run for a commit that does not exist
+yet. Pull requests are still fully gated.
 
 ## Conventions
 
