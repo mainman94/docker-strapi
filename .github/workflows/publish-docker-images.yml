@@ -122,7 +122,7 @@ jobs:
       # image was built; the buildx `provenance`/`sbom` attestations above
       # travel with the image itself.
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-name: docker.io/${{ env.DOCKER_USERNAME }}/strapi
           subject-digest: ${{ steps.push.outputs.digest }}
