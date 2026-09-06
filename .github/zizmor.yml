@@ -1,0 +1,13 @@
+# zizmor configuration. Rule-level ignores live here rather than as inline
+# comments so the reason is written down once, next to the rule, instead of
+# scattered through the workflows.
+
+rules:
+  artipacked:
+    ignore:
+      # Both of these check out with the PAT and then push through
+      # git-auto-commit-action, so the credential has to stay in the
+      # checkout's git config. The push has to trigger
+      # publish-docker-images.yml, which a GITHUB_TOKEN push would not do.
+      - auto-check-new-releases.yml
+      - manual-release.yml

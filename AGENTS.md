@@ -34,7 +34,13 @@ and the release flow in more detail.
 | `make scan`                 | CVE scan the built images (advisory, same as CI) |
 | `make example-up EXAMPLE=strapi-postgres` | Run an example stack           |
 
-`.devcontainer/` provides Docker and the hook toolchain.
+`.devcontainer/` provides Docker; everything else comes from mise.
+
+**Tool versions live in `mise.toml` and nowhere else** — python, pre-commit,
+shellcheck, actionlint, trivy. The dev container's post-create runs
+`mise install`; CI installs from the same file with `jdx/mise-action`. The
+shellcheck that lints the entrypoints in CI is therefore the same binary the
+hook uses locally.
 
 ## Automated checks
 
@@ -52,6 +58,17 @@ hygiene hooks. Two hooks are repo-specific:
   characters. These files trigger a publish, so the format is checked before
   they can.
 
+Two hooks cover the workflows themselves, which matters here because a
+workflow in this repo publishes public images: **`actionlint`** (schema,
+expressions, and the shell in `run:` blocks, using the pinned shellcheck) and
+**`zizmor`** (CI/CD security patterns). zizmor's ignores live in
+`.github/zizmor.yml` with their reasons — the two PAT-checkout workflows have
+to persist credentials, because git-auto-commit-action pushes with them.
+
+Every action reference is pinned to a **commit SHA** with the tag in a
+trailing comment; `helpers:pinGitHubActionDigests` keeps the digests current.
+Do not "tidy" a pin back to `@v7`.
+
 The build and the smoke test stay out of the hooks: they need a daemon and a
 few minutes. `make check` runs them.
 
@@ -68,8 +85,24 @@ a rebuild picks up current patches — failing the build on an unpatched
 upstream CVE would only stop that rebuild from shipping, which is backwards.
 `--ignore-unfixed` for the same reason.
 
-The publish workflow already emits an SBOM (`sbom: true`), so consumers can
-scan a published tag themselves.
+The publish workflow emits an SBOM and max-mode provenance (`sbom: true`,
+`provenance: mode=max`), so consumers can scan a published tag themselves.
+
+It also **signs what it pushes**. cosign signs the multi-arch index by digest,
+keylessly: the signature carries this workflow's OIDC identity and lands in
+Rekor, so there is no signing key to store or rotate, and a consumer can prove
+an image came from this repo:
+
+```shell
+cosign verify docker.io/dockerha08/strapi:alpine-latest \
+  --certificate-identity-regexp '^https://github.com/mainman94/docker-strapi/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+`actions/attest-build-provenance` additionally writes a SLSA provenance
+statement to this repository's attestation store
+(`gh attestation verify oci://docker.io/dockerha08/strapi:alpine-latest -R mainman94/docker-strapi`).
+Signing is by digest, never by tag: a tag can be moved, a digest cannot.
 
 ## Conventions
 
