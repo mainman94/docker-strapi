@@ -1,0 +1,23 @@
+# The toolchain for this repo, in one place.
+#
+# The dev container, the git hooks and CI all install from here, so a bump
+# lands in all three at once and a version can never be pinned in CI while
+# the dev container quietly installs something else.
+#
+# Renovate keeps these pins current (mise manager). `mise install` after a
+# pull; the dev container's post-create does it for you.
+
+[tools]
+# pre-commit builds the rest of the hook toolchain — hadolint, shfmt,
+# yamlfmt, gitleaks — into its own cached envs.
+python = "3.14"
+pre-commit = "4.6.2"
+
+# shellcheck is pinned rather than left to the hook's own env because
+# actionlint shells out to it for `run:` blocks, and smoke-test.sh and the
+# two entrypoints are checked with the same binary CI uses.
+shellcheck = "0.11.0"
+actionlint = "1.7.9"
+
+# `make scan` — CI runs the same scan through trivy-action.
+trivy = "0.74.0"

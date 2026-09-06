@@ -34,4 +34,12 @@ entrypoint, and the published tags.
 - These images scaffold a project on first boot and run `strapi develop` by
   default. For production, build your own image from your project (see the
   root README) rather than shipping a bind-mounted scaffold.
-- Published images carry SBOM and max-mode provenance attestations.
+- Published images carry SBOM and max-mode provenance attestations, and are
+  signed with cosign keylessly (Sigstore, no long-lived key). Verify before
+  you run one:
+
+  ```shell
+  cosign verify docker.io/dockerha08/strapi:alpine-latest \
+    --certificate-identity-regexp '^https://github.com/mainman94/docker-strapi/' \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com
+  ```

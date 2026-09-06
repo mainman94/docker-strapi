@@ -17,10 +17,16 @@ jobs:
       matrix:
         variant: [alpine, debian]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # shellcheck comes from mise.toml, so the version that lints the
+      # entrypoints here is the version the pre-commit hook uses locally.
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
 
       - name: Lint Dockerfile
-        uses: hadolint/hadolint-action@v3.5.0
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
         with:
           dockerfile: images/strapi-${{ matrix.variant }}/Dockerfile
           config: .hadolint.yaml
@@ -45,16 +51,18 @@ jobs:
       matrix:
         variant: [alpine, debian]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Get the version
         id: vars
         run: echo "tag=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Build (amd64)
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: ./images/strapi-${{ matrix.variant }}
           build-args: |
@@ -74,7 +82,7 @@ jobs:
       # rebuild picks up current patches, and failing the build on an
       # unpatched upstream CVE would only stop that rebuild from shipping.
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: strapi-${{ matrix.variant }}-test
           format: sarif
@@ -84,7 +92,7 @@ jobs:
           scanners: vuln
           exit-code: "0"
 
-      - uses: github/codeql-action/upload-sarif@v4
+      - uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           sarif_file: trivy-${{ matrix.variant }}.sarif
           # Without a per-variant category the two matrix legs overwrite each

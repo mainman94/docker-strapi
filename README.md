@@ -56,7 +56,8 @@ Runnable examples: [SQLite](https://github.com/mainman94/docker-strapi/tree/main
 `<version>` is the upstream Strapi version, e.g. `alpine-5.52.3`.
 
 Platforms: `linux/amd64`, `linux/arm64`. Every published image carries an
-SBOM and provenance attestation, plus OCI labels:
+SBOM and provenance attestation, is signed with cosign (keyless, verify with
+the command in [SECURITY.md](SECURITY.md)), and has OCI labels:
 
 ```shell
 docker buildx imagetools inspect dockerha08/strapi:alpine-latest

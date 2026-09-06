@@ -21,9 +21,13 @@ jobs:
   get-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      # The PAT has to stay in the checkout's git config: git-auto-commit-action
+      # pushes with it, and that push has to trigger publish-docker-images.yml,
+      # which a GITHUB_TOKEN push would not do.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           token: ${{ secrets.PAT }}
+          persist-credentials: true
 
       # Validate before writing: a failed request or a changed payload would
       # otherwise put an empty value or "null" into release-versions/, and the
@@ -52,6 +56,6 @@ jobs:
             echo "$digest" > "release-versions/$file"
           done
 
-      - uses: stefanzweifel/git-auto-commit-action@v7
+      - uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7
         with:
           commit_message: New auto release v${{steps.fetch-version.outputs.version}}
