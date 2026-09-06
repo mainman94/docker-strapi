@@ -331,3 +331,12 @@ tmp.*
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Agent configuration is shared (same rule as multi-k8s-infra and
+# docker-stack): the hooks, skills and reviewer agent are checked in,
+# anything else under .claude/ — settings.local.json especially — is local.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
+!.claude/agents/
