@@ -31,13 +31,13 @@ RUN apk upgrade --no-cache
 RUN npm install -g npm@latest && \
     NPM_DIR="$(npm root -g)/npm/node_modules" && \
     TMP="$(mktemp -d)" && \
-    ( cd "$TMP" && npm pack undici@^6.28.0 tar@^7.5.21 ip-address@^10.3.1 brace-expansion@^5.0.9 ) && \
-    for tgz in "$TMP"/*.tgz; do \
-      pkg="$(basename "$tgz" | sed -E 's/-[0-9]+\.[0-9]+\.[0-9]+.*\.tgz$//')" ; \
-      rm -rf "$NPM_DIR/$pkg" && mkdir -p "$NPM_DIR/$pkg" && \
-      tar -xzf "$tgz" -C "$NPM_DIR/$pkg" --strip-components=1 ; \
+    npm pack --pack-destination "${TMP:?}" \
+      undici@^6.28.0 tar@^7.5.21 ip-address@^10.3.1 brace-expansion@^5.0.9 && \
+    for pkg in undici tar ip-address brace-expansion; do \
+      rm -rf "${NPM_DIR:?}/$pkg" && mkdir -p "${NPM_DIR:?}/$pkg" && \
+      tar -xzf "$TMP/$pkg"-*.tgz -C "${NPM_DIR:?}/$pkg" --strip-components=1 ; \
     done && \
-    rm -rf "$TMP"
+    rm -rf "${TMP:?}"
 
 EXPOSE 1337
 
