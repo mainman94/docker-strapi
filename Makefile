@@ -33,16 +33,16 @@ tools: ## Install the pinned toolchain from mise.toml
 
 .PHONY: hooks
 hooks: ## Install the git pre-commit hook
-	pre-commit install
+	prek install
 
 .PHONY: lint
 lint: ## Run every pre-commit hook over the whole tree
-	pre-commit run --all-files
+	prek run --all-files
 
 .PHONY: fmt
 fmt: ## Reformat YAML and shell in place
-	pre-commit run yamlfmt --all-files || true
-	pre-commit run shfmt-src --all-files || true
+	prek run yamlfmt --all-files || true
+	prek run shfmt-src --all-files || true
 
 .PHONY: versions
 versions: ## Show what release-versions/ currently pins
@@ -103,4 +103,4 @@ clean: ## Remove the locally built test images
 
 .PHONY: update-hooks
 update-hooks: ## Bump pinned hook revisions
-	pre-commit autoupdate
+	prek update

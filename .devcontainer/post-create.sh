@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Provision the dev container. The toolchain is pinned in mise.toml — python,
-# pre-commit, shellcheck, actionlint, trivy — so this installs mise, lets it
+# prek, shellcheck, actionlint, trivy — so this installs mise, lets it
 # do the rest, then wires up the git hook with its environments warmed so the
 # first commit is not a long wait. CI installs from the same file.
 set -euo pipefail
@@ -16,16 +16,16 @@ for shell in bash zsh; do
   grep -q "mise activate" "$rc" || echo "eval \"\$(mise activate $shell)\"" >> "$rc"
 done
 
-echo "==> installing the pinned toolchain (python, pre-commit, shellcheck, actionlint, trivy)"
+echo "==> installing the pinned toolchain (python, prek, shellcheck, actionlint, trivy)"
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 mise trust
 mise install
 
 echo "==> installing the git hook"
-mise exec -- pre-commit install
+mise exec -- prek install
 
 echo "==> warming hook environments (downloads hadolint, shfmt, yamlfmt, gitleaks)"
-mise exec -- pre-commit install-hooks
+mise exec -- prek prepare-hooks
 
 cat <<'MSG'
 

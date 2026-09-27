@@ -37,7 +37,7 @@ and the release flow in more detail.
 
 `.devcontainer/` provides Docker; everything else comes from mise.
 
-**Tool versions live in `mise.toml` and nowhere else** — python, pre-commit,
+**Tool versions live in `mise.toml` and nowhere else** — python, prek,
 shellcheck, actionlint, trivy. The dev container's post-create runs
 `mise install`; CI installs from the same file with `jdx/mise-action`. The
 shellcheck that lints the entrypoints in CI is therefore the same binary the

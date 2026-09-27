@@ -37,8 +37,8 @@ make scan  VARIANT=alpine      # the same advisory CVE scan CI runs
 make example-up EXAMPLE=strapi-postgres
 ```
 
-**Tool versions live in `mise.toml` and nowhere else** — python, pre-commit,
-shellcheck, actionlint and trivy; pre-commit builds the rest (hadolint, shfmt,
+**Tool versions live in `mise.toml` and nowhere else** — python, prek,
+shellcheck, actionlint and trivy; prek builds the rest (hadolint, shfmt,
 yamlfmt, gitleaks) into its own cached envs. The dev container, the git hooks
 and CI all install from that one file, so a bump lands in all three at once and
 a lint that passes locally passes in CI.
