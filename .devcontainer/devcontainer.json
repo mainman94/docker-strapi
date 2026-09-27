@@ -9,7 +9,7 @@
       "version": "latest",
       "dockerDashComposeVersion": "v2"
     },
-    // python, pre-commit, shellcheck, actionlint and trivy are not features
+    // python, prek, shellcheck, actionlint and trivy are not features
     // any more: mise.toml pins them and post-create runs `mise install`.
     // One version list, shared with CI.
     "ghcr.io/devcontainers/features/common-utils:2": {

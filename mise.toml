@@ -8,10 +8,10 @@
 # pull; the dev container's post-create does it for you.
 
 [tools]
-# pre-commit builds the rest of the hook toolchain — hadolint, shfmt,
+# prek builds the rest of the hook toolchain — hadolint, shfmt,
 # yamlfmt, gitleaks — into its own cached envs.
 python = "3.14"
-pre-commit = "4.6.2"
+prek = "0.5.3"
 
 # shellcheck is pinned rather than left to the hook's own env because
 # actionlint shells out to it for `run:` blocks, and smoke-test.sh and the
