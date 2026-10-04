@@ -23,7 +23,7 @@ jobs:
 
       # shellcheck comes from mise.toml, so the version that lints the
       # entrypoints here is the version the pre-commit hook uses locally.
-      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5
+      - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
 
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
