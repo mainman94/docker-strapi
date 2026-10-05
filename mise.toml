@@ -11,7 +11,7 @@
 # prek builds the rest of the hook toolchain — hadolint, shfmt,
 # yamlfmt, gitleaks — into its own cached envs.
 python = "3.14"
-prek = "0.5.4"
+prek = "0.5.5"
 
 # shellcheck is pinned rather than left to the hook's own env because
 # actionlint shells out to it for `run:` blocks, and smoke-test.sh and the
