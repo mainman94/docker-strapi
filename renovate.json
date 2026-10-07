@@ -6,5 +6,39 @@
   ],
   "pre-commit": {
     "enabled": true
-  }
+  },
+  "customManagers": [
+    {
+      "description": "npm itself, pinned in both Dockerfiles",
+      "customType": "regex",
+      "managerFilePatterns": ["/^images/strapi-[^/]+/Dockerfile$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\nARG NPM_VERSION=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "description": "Fixed copies dropped over npm's vendored deps (ARG NPM_PATCHES)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^images/strapi-[^/]+/Dockerfile$/"],
+      "matchStrings": [
+        "[\" ](?<depName>[a-z][a-z0-9.-]*)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "npm"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "npm's vendored deps must stay on the major npm bundles; a new major is a manual decision",
+      "matchFileNames": ["images/strapi-*/Dockerfile"],
+      "matchDepNames": ["undici", "tar", "ip-address", "brace-expansion", "postcss-selector-parser"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Both Dockerfiles carry the same pins; bump them together",
+      "matchFileNames": ["images/strapi-*/Dockerfile"],
+      "matchDatasources": ["npm"],
+      "groupName": "npm in images"
+    }
+  ]
 }

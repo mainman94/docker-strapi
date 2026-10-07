@@ -1,12 +1,15 @@
 ###################
 # ENV VARS:
-# - PAT (generated at Personal Access Tokens - with workflow access checked)
+# - PAT in the `release` environment (see auto-check-new-releases.yml)
+#
+# Opens a release pull request, like the daily check; it does not push to
+# main. Auto-merge lands it once the required checks pass.
 ###################
 
 name: Create new release manually
 
 permissions:
-  contents: read # the push goes through the PAT stored by actions/checkout
+  contents: read # the branch and the pull request go through the PAT
 
 on:
   workflow_dispatch:
@@ -17,22 +20,25 @@ on:
         default: '5.0.0'
         type: string
 
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
 jobs:
   get-version:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The PAT lives in the release environment, which only main can use.
+    environment: release
     steps:
-      # The PAT has to stay in the checkout's git config: git-auto-commit-action
-      # pushes with it, and that push has to trigger publish-docker-images.yml,
-      # which a GITHUB_TOKEN push would not do.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          token: ${{ secrets.PAT }}
-          persist-credentials: true
+          persist-credentials: false
 
       # The input goes through the environment, never interpolated into the
       # shell: `${{ }}` inside a run block is a template injection sink.
       # It is validated to the same bare-semver shape the
-      # release-versions-format hook enforces, because writing this file
+      # release-versions-format hook enforces, because merging this file
       # triggers publish-docker-images.yml — a typo here publishes an image
       # built from create-strapi-app@<typo>.
       - name: Fetch release version
@@ -45,7 +51,27 @@ jobs:
             *) echo "::error::version must be a bare semver like 5.0.0, got '$VERSION'"; exit 1 ;;
           esac
           echo "$VERSION" > release-versions/strapi-latest.txt
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7
+      # Everything below uses the validated output, not the raw input.
+      - name: Open or update the release pull request
+        id: pr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
-          commit_message: New manual release ${{ inputs.version }}
+          token: ${{ secrets.PAT }}
+          branch: release/manual
+          delete-branch: true
+          add-paths: release-versions/*
+          commit-message: New manual release ${{ steps.fetch-version.outputs.version }}
+          title: New manual release ${{ steps.fetch-version.outputs.version }}
+          body: |
+            Started by hand with `manual-release.yml`.
+
+            Merging publishes both variants to Docker Hub. Auto-merge lands this once the required checks pass.
+
+      - name: Enable auto-merge
+        if: steps.pr.outputs.pull-request-operation == 'created' || steps.pr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}
+        run: gh pr merge --auto --squash "$PR" --repo "$GITHUB_REPOSITORY"

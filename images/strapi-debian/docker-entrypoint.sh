@@ -3,6 +3,16 @@ set -ea
 
 if [ "$*" = "strapi" ]; then
 
+  # Both variants run unprivileged. A volume populated by an older image that
+  # ran as root is not writable any more; say so instead of failing halfway
+  # through an install with a bare EACCES.
+  if [ ! -w . ] || { [ -e package.json ] && [ ! -w package.json ]; }; then
+    echo "error: /srv/app is not writable by uid $(id -u) (gid $(id -g))." >&2
+    echo "The image runs as an unprivileged user. Hand the volume over once:" >&2
+    echo "  docker run --rm -v <volume>:/srv/app alpine chown -R $(id -u):$(id -g) /srv/app" >&2
+    exit 1
+  fi
+
   if [ ! -f "package.json" ]; then
 
     DATABASE_CLIENT=${DATABASE_CLIENT:-sqlite}
@@ -12,13 +22,13 @@ if [ "$*" = "strapi" ]; then
     echo "No project found at /srv/app. Creating a new strapi project ..."
 
     DOCKER=true npx create-strapi-app@${STRAPI_VERSION} . --no-run --skip-cloud --non-interactive \
-      --dbclient=$DATABASE_CLIENT \
-      --dbhost=$DATABASE_HOST \
-      --dbport=$DATABASE_PORT \
-      --dbname=$DATABASE_NAME \
-      --dbusername=$DATABASE_USERNAME \
-      --dbpassword=$DATABASE_PASSWORD \
-      --dbssl=$DATABASE_SSL \
+      --dbclient="$DATABASE_CLIENT" \
+      --dbhost="$DATABASE_HOST" \
+      --dbport="$DATABASE_PORT" \
+      --dbname="$DATABASE_NAME" \
+      --dbusername="$DATABASE_USERNAME" \
+      --dbpassword="$DATABASE_PASSWORD" \
+      --dbssl="$DATABASE_SSL" \
       $EXTRA_ARGS
 
     # create-strapi-app writes DATABASE_FILENAME= (empty) into .env
@@ -30,9 +40,12 @@ if [ "$*" = "strapi" ]; then
     # Recent npm blocks install/postinstall scripts by default, so
     # better-sqlite3's native binding (fetched via prebuild-install) never
     # gets installed and sqlite fails with a bare "unable to open database
-    # file" at startup. Approve and rebuild once, right after scaffolding.
-    npm install-scripts approve --all 2>/dev/null || true
-    npm rebuild 2>/dev/null || true
+    # file" at startup. Approve exactly that package and rebuild it, right
+    # after scaffolding. Approving --all would hand every transitive
+    # dependency the install-script access npm now withholds by default.
+    # With a non-sqlite client better-sqlite3 is absent and both are no-ops.
+    npm install-scripts approve better-sqlite3 2>/dev/null || true
+    npm rebuild better-sqlite3 2>/dev/null || true
 
   elif [ ! -d "node_modules" ] || [ ! "$(ls -qAL node_modules 2>/dev/null)" ]; then
 
@@ -44,7 +57,7 @@ if [ "$*" = "strapi" ]; then
     else
 
       echo "Node modules not installed. Installing using npm ..."
-      npm install --only=prod || { echo "NPM install failed"; exit 1; }
+      npm install --omit=dev || { echo "NPM install failed"; exit 1; }
 
     fi
 

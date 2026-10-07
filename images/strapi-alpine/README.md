@@ -10,6 +10,7 @@ native dependency of your project needs glibc.
 
 | Arg | Default | Description |
 | --- | --- | --- |
+| `NODE_DIGEST` | – (required) | Base image digest; published images use `release-versions/node-alpine-digest.txt` |
 | `NODE_VERSION` | `24` | Node.js major, picks the `node:<v>-alpine` base |
 | `STRAPI_VERSION` | `5.52.2` | Strapi CLI version; published images use `release-versions/strapi-latest.txt` |
 | `VCS_REF` | `unknown` | Commit SHA, written to `org.opencontainers.image.revision` |
@@ -17,15 +18,16 @@ native dependency of your project needs glibc.
 
 ## User
 
-Runs as the non-root user `appuser`. Its UID/GID is **not pinned** by the
-image, so a bind-mounted host directory will usually not be writable by it.
-Override at runtime to match the mount's owner:
+Runs as the non-root user `appuser`, uid `100` / gid `101` (pinned). A
+bind-mounted host directory must be writable by it — `sudo chown -R 100:101
+./app` — or override the user at runtime to match the mount's owner:
 
 ```shell
 docker run --user "$(id -u):$(id -g)" -v ./app:/srv/app dockerha08/strapi:alpine-latest
 ```
 
-or `user: "1000:1000"` in Compose. Named volumes need no such workaround.
+or `user: "1000:1000"` in Compose. Named volumes need no such workaround. If
+`/srv/app` is not writable, the entrypoint stops with the `chown` to run.
 
 ## Admin panel build
 

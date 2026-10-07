@@ -1,12 +1,13 @@
 ###########
-# Docker Hub PAT: repo secret DOCKER_TOKEN (Cloudflare Bot Fight Mode blocks
+# Docker Hub PAT: secret DOCKER_TOKEN (Cloudflare Bot Fight Mode blocks
 # GitHub Actions runners from reaching vault.hauptmann.dev, so the OpenBao
 # OIDC route doesn't work here). Username is public (Docker Hub namespace),
-# not secret.
+# not secret. The jobs that use it run in the `release` environment, which
+# only main can deploy to.
 #
 # Signing needs no secret: cosign signs keylessly against Sigstore using the
 # workflow's OIDC identity, so there is no signing key to store, rotate or
-# leak. The identity in the signature is this workflow file on this repo.
+# leak. The identity in the signature is this workflow file on main.
 ###########
 
 name: Publish Docker Image
@@ -14,20 +15,35 @@ name: Publish Docker Image
 env:
   DOCKER_USERNAME: dockerha08
 
-# Read by default; the two jobs take what they actually need. Only finalize
+# Read by default; the jobs take what they actually need. Only finalize
 # writes to the repository, and only build gets an OIDC token.
 permissions:
   contents: read
 
+# Only main publishes. A release-versions change on any other branch is a
+# pull request in progress, not a release: without this filter it would
+# overwrite the public -latest tags and sign the result.
 on:
   push:
+    branches: [main]
     paths:
       - "release-versions/*"
   workflow_dispatch:
 
+# Two publishes in flight would race to move the -latest tags. Queue them;
+# never cancel one halfway through a push.
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
   build:
+    # workflow_dispatch can be started on any branch; the push filter above
+    # does not cover it.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: release
     permissions:
       contents: read
       # Keyless signing and provenance both mint an OIDC token; the
@@ -52,9 +68,14 @@ jobs:
 
       - name: Get the version
         id: vars
+        env:
+          VARIANT: ${{ matrix.variant }}
         run: |
-          echo "tag=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
-          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=$(tr -d '[:space:]' < release-versions/strapi-latest.txt)"
+            echo "node_digest=$(tr -d '[:space:]' < "release-versions/node-${VARIANT}-digest.txt")"
+            echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
@@ -75,6 +96,7 @@ jobs:
           build-args: |
             STRAPI_VERSION=${{ steps.vars.outputs.tag }}
             NODE_VERSION=24
+            NODE_DIGEST=${{ steps.vars.outputs.node_digest }}
             VCS_REF=${{ github.sha }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
           load: true
@@ -85,6 +107,10 @@ jobs:
       - name: Smoke test
         run: ./smoke-test.sh strapi-${{ matrix.variant }}-test
 
+      # Three tags: the version and -latest move whenever the base image is
+      # rebuilt under the same Strapi version; the -r<run> tag never moves, so
+      # a consumer who pins it gets exactly the image that was tested and
+      # signed in this run.
       - name: Build & push
         id: push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
@@ -93,6 +119,7 @@ jobs:
           build-args: |
             STRAPI_VERSION=${{ steps.vars.outputs.tag }}
             NODE_VERSION=24
+            NODE_DIGEST=${{ steps.vars.outputs.node_digest }}
             VCS_REF=${{ github.sha }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
           platforms: linux/amd64,linux/arm64
@@ -100,6 +127,7 @@ jobs:
           provenance: mode=max
           sbom: true
           tags: |
+            ${{ env.DOCKER_USERNAME }}/strapi:${{ matrix.tag_prefix }}-${{ steps.vars.outputs.tag }}-r${{ github.run_number }}
             ${{ env.DOCKER_USERNAME }}/strapi:${{ matrix.tag_prefix }}-${{ steps.vars.outputs.tag }}
             ${{ env.DOCKER_USERNAME }}/strapi:${{ matrix.tag_prefix }}-latest
           cache-from: type=gha,scope=${{ matrix.variant }}
@@ -127,9 +155,38 @@ jobs:
           subject-name: docker.io/${{ env.DOCKER_USERNAME }}/strapi
           subject-digest: ${{ steps.push.outputs.digest }}
 
-  finalize:
+  # The pre-push smoke test runs a separate amd64 build. This one pulls what
+  # was actually pushed, by its immutable tag, and boots it natively on both
+  # architectures, so a broken arm64 image fails the run before the release
+  # and the Docker Hub description go out.
+  verify:
     needs: build
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        tag_prefix: [alpine, debian-slim]
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    steps:
+      - name: Get current repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Smoke test the pushed image
+        env:
+          TAG_PREFIX: ${{ matrix.tag_prefix }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          tag=$(tr -d '[:space:]' < release-versions/strapi-latest.txt)
+          ./smoke-test.sh "docker.io/${DOCKER_USERNAME}/strapi:${TAG_PREFIX}-${tag}-r${RUN_NUMBER}"
+
+  finalize:
+    needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
     permissions:
       contents: write # creates the GitHub release
     steps:
@@ -140,7 +197,7 @@ jobs:
 
       - name: Get the version
         id: vars
-        run: echo "tag=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
+        run: echo "tag=$(tr -d '[:space:]' < release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Docker Hub Description (README.md)
         uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5
@@ -150,25 +207,33 @@ jobs:
           repository: ${{ env.DOCKER_USERNAME }}/strapi
           readme-filepath: README.md
 
-      # actions/create-release is archived; gh ships on the runner. Re-running
-      # the workflow for an already-released version must not fail the job.
+      # actions/create-release is archived; gh ships on the runner. A base
+      # image rebuild republishes an already-released Strapi version: that is
+      # expected and only gets a notice. Any other failure fails the job.
       - name: Create Release in GitHub
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.vars.outputs.tag }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REPOSITORY: ${{ github.repository }}
         run: |-
+          if gh release view "v$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release v$TAG already exists; this run rebuilt it as *-$TAG-r$RUN_NUMBER"
+            exit 0
+          fi
           gh release create "v$TAG" \
             --title "Release $TAG" \
             --notes "Strapi v$TAG
 
-          Images:
+          Images (the \`-r$RUN_NUMBER\` tags never move; the others follow base image rebuilds):
+          - \`${DOCKER_USERNAME}/strapi:alpine-$TAG-r$RUN_NUMBER\`
+          - \`${DOCKER_USERNAME}/strapi:debian-slim-$TAG-r$RUN_NUMBER\`
           - \`${DOCKER_USERNAME}/strapi:alpine-$TAG\`
           - \`${DOCKER_USERNAME}/strapi:debian-slim-$TAG\`
 
           Signed keylessly with cosign. Verify:
           \`\`\`
-          cosign verify docker.io/${DOCKER_USERNAME}/strapi:alpine-$TAG \\
-            --certificate-identity-regexp '^https://github.com/${{ github.repository }}/' \\
+          cosign verify docker.io/${DOCKER_USERNAME}/strapi:alpine-$TAG-r$RUN_NUMBER \\
+            --certificate-identity https://github.com/$REPOSITORY/.github/workflows/publish-docker-images.yml@refs/heads/main \\
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
           \`\`\`"

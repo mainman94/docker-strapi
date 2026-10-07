@@ -1,8 +1,9 @@
 # docker-strapi — Strapi v5 images for Alpine and Debian-slim.
 #
 # release-versions/ drives everything: a push to any file in it triggers
-# publish-docker-images.yml, which builds both variants, smoke-tests amd64,
-# pushes to Docker Hub and cuts a GitHub release.
+# publish-docker-images.yml on main, which builds both variants, smoke-tests
+# them, pushes to Docker Hub, smoke-tests the pushed images on amd64 and arm64
+# and cuts a GitHub release.
 
 SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -58,6 +59,7 @@ build: ## Build the image(s) locally
 		docker build \
 			--build-arg STRAPI_VERSION=$(STRAPI_VERSION) \
 			--build-arg NODE_VERSION=$(NODE_VERSION) \
+			--build-arg NODE_DIGEST=$$(tr -d '[:space:]' < release-versions/node-$$v-digest.txt) \
 			--build-arg VCS_REF=$(VCS_REF) \
 			-t $(TAG_PREFIX)-$$v-test \
 			images/strapi-$$v; \

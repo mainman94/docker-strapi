@@ -9,10 +9,13 @@ services:
       DATABASE_PORT: 5432
       DATABASE_NAME: strapi
       DATABASE_USERNAME: strapi
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-strapi}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD, e.g. in an .env file next to this compose file}
       DATABASE_SSL: "false"
+    # Loopback only: these examples run the development server (admin panel
+    # with content-type builder and autoreload). Put a reverse proxy in front
+    # and switch to NODE_ENV=production before exposing it anywhere else.
     ports:
-      - "1337:1337"
+      - "127.0.0.1:1337:1337"
     volumes:
       - app:/srv/app # project is scaffolded here on first boot and reused after
     depends_on:
@@ -25,7 +28,7 @@ services:
     environment:
       POSTGRES_DB: strapi
       POSTGRES_USER: strapi
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-strapi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD, e.g. in an .env file next to this compose file}
     volumes:
       - data:/var/lib/postgresql/data
     healthcheck:

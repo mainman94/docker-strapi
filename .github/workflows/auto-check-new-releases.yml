@@ -1,41 +1,55 @@
 ###################
-# PAT: repo secret PAT (user-scoped, repo+workflow), not GITHUB_TOKEN — a
-# GITHUB_TOKEN-triggered push does not cascade into other workflow runs, and
-# this commit needs to trigger publish-docker-images.yml. Cloudflare Bot
-# Fight Mode blocks GitHub Actions runners from reaching vault.hauptmann.dev,
-# so the OpenBao OIDC route doesn't work here.
+# PAT: secret PAT in the `release` environment, not GITHUB_TOKEN. A pull
+# request opened with GITHUB_TOKEN does not trigger ci.yml, so the required
+# checks would never report and auto-merge would never fire; the merge it
+# enables also has to trigger publish-docker-images.yml, which a
+# GITHUB_TOKEN-driven merge would not. Needs contents:write and
+# pull-requests:write on this repository only. Cloudflare Bot Fight Mode
+# blocks GitHub Actions runners from reaching vault.hauptmann.dev, so the
+# OpenBao OIDC route doesn't work here.
+#
+# Nothing here pushes to main. A version or digest change becomes a pull
+# request on release/auto that has to pass the same required checks as any
+# other change; auto-merge lands it, and that merge triggers the publish.
 ###################
 
 name: Check for new releases
 # Check automatically for new releases (new version)
 
 permissions:
-  contents: read # pushes go through the PAT stored by actions/checkout
+  contents: read # the branch and the pull request go through the PAT
 
 on:
   schedule:
     - cron: "0 0 */1 * *"
   workflow_dispatch:
 
+# One release PR at a time: a run while the last one is still open updates it.
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
 jobs:
   get-version:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The PAT lives in the release environment, which only main can use.
+    environment: release
     steps:
-      # The PAT has to stay in the checkout's git config: git-auto-commit-action
-      # pushes with it, and that push has to trigger publish-docker-images.yml,
-      # which a GITHUB_TOKEN push would not do.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          token: ${{ secrets.PAT }}
-          persist-credentials: true
+          persist-credentials: false
 
       # Validate before writing: a failed request or a changed payload would
       # otherwise put an empty value or "null" into release-versions/, and the
-      # resulting commit triggers a publish that builds create-strapi-app@null.
+      # resulting release builds create-strapi-app@null.
+      # The version comes from npm's `latest` dist-tag, not from Strapi's main
+      # branch: main can carry a version that is not on npm yet, and the image
+      # scaffolds with create-strapi-app@<version> from npm at first boot.
       - name: Fetch release version
         id: fetch-version
         run: |
-          version=$(curl -sSfL https://raw.githubusercontent.com/strapi/strapi/main/packages/core/strapi/package.json | jq -er ".version")
+          version=$(curl -sSfL https://registry.npmjs.org/@strapi/strapi/latest | jq -er ".version")
           case "$version" in
             [0-9]*.[0-9]*.[0-9]*) ;;
             *) echo "::error::unexpected strapi version: '$version'"; exit 1 ;;
@@ -56,6 +70,25 @@ jobs:
             echo "$digest" > "release-versions/$file"
           done
 
-      - uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7
+      # No change → no pull request (pull-request-operation is "none").
+      - name: Open or update the release pull request
+        id: pr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
-          commit_message: New auto release v${{steps.fetch-version.outputs.version}}
+          token: ${{ secrets.PAT }}
+          branch: release/auto
+          delete-branch: true
+          add-paths: release-versions/*
+          commit-message: New auto release v${{ steps.fetch-version.outputs.version }}
+          title: New auto release v${{ steps.fetch-version.outputs.version }}
+          body: |
+            Automated by `auto-check-new-releases.yml`: the latest Strapi version on npm and the current `node:24` base image digests.
+
+            Merging publishes both variants to Docker Hub. Auto-merge lands this once the required checks pass.
+
+      - name: Enable auto-merge
+        if: steps.pr.outputs.pull-request-operation == 'created' || steps.pr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}
+        run: gh pr merge --auto --squash "$PR" --repo "$GITHUB_REPOSITORY"
