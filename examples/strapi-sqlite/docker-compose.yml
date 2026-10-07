@@ -5,8 +5,11 @@ services:
     environment:
       NODE_ENV: development
       DATABASE_CLIENT: sqlite
+    # Loopback only: these examples run the development server (admin panel
+    # with content-type builder and autoreload). Put a reverse proxy in front
+    # and switch to NODE_ENV=production before exposing it anywhere else.
     ports:
-      - "1337:1337"
+      - "127.0.0.1:1337:1337"
     volumes:
       - app:/srv/app # project is scaffolded here on first boot and reused after
 

@@ -18,14 +18,22 @@ The current diff (`git diff` / `git diff --staged`, or files named by the caller
 - **The two variants diverging.** The entrypoints are byte-identical by design. A change
   to one without the other is a silent behaviour split between published tags.
 - **A base image no longer pinned by digest.** `release-versions/*-digest.txt` holds the
-  pins; a Dockerfile that resolves a tag at build time makes the build irreproducible.
+  pins and every build passes them as `NODE_DIGEST` into `FROM ...@${NODE_DIGEST}`; a
+  Dockerfile that resolves a tag at build time makes the build irreproducible. The same
+  goes for `NPM_VERSION` / `NPM_PATCHES`: exact versions, never `latest` or a range.
 - **A release-versions edit.** That is what triggers a publish. Check the format matches
   what `scripts/check-release-versions.sh` enforces (bare semver, `sha256:` + 64 hex) and
   say plainly that merging it ships an image.
 - **Layer and size regressions**: a `RUN` that installs and does not clean up in the same
   layer, a `COPY` that pulls in build context it does not need.
-- **Root where it need not be.** The alpine variant runs as `appuser`; a change that
-  reverts that, or adds a root-only step after the `USER` line, is worth flagging.
+- **Root where it need not be.** Alpine runs as `appuser` (uid 100), Debian as `node`
+  (uid 1000); a change that reverts either, or adds a root-only step after the `USER`
+  line, is worth flagging.
+- **Install-script approvals widened.** The entrypoint approves `better-sqlite3` only;
+  `npm install-scripts approve --all` re-opens install scripts for every dependency.
+- **The publish path reachable from outside `main`**: a lost `branches: [main]` filter or
+  `if: github.ref == 'refs/heads/main'`, a job using `DOCKER_TOKEN` or `PAT` without
+  `environment: release`, or a cosign verify command that matches the identity by prefix.
 - **Workflow changes on the publish path**: a lost `sbom`/`provenance` flag, a signing
   step that no longer runs, a permission widened past the job that needs it.
 - **Template injection**: `${{ }}` interpolated into a `run:` block. Inputs go through
@@ -35,7 +43,6 @@ The current diff (`git diff` / `git diff --staged`, or files named by the caller
 
 - hadolint's pinned-version warnings on the base image: it is pinned by digest in
   `release-versions/`, and `.hadolint.yaml` ignores those rules deliberately.
-- The debian variant running as root — documented in SECURITY.md as by design.
 - Unpatched upstream CVEs in the trivy scan: the scan is advisory precisely so a rebuild
   can still ship current base-image patches.
 

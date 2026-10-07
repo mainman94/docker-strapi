@@ -9,9 +9,15 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request supersedes the run for the previous one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -42,6 +48,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       # Uploading the trivy SARIF to the Security tab.
@@ -59,7 +66,13 @@ jobs:
 
       - name: Get the version
         id: vars
-        run: echo "tag=$(cat release-versions/strapi-latest.txt)" >> "$GITHUB_OUTPUT"
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          {
+            echo "tag=$(tr -d '[:space:]' < release-versions/strapi-latest.txt)"
+            echo "node_digest=$(tr -d '[:space:]' < "release-versions/node-${VARIANT}-digest.txt")"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build (amd64)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
@@ -68,6 +81,7 @@ jobs:
           build-args: |
             STRAPI_VERSION=${{ steps.vars.outputs.tag }}
             NODE_VERSION=24
+            NODE_DIGEST=${{ steps.vars.outputs.node_digest }}
             VCS_REF=${{ github.sha }}
           load: true
           tags: strapi-${{ matrix.variant }}-test

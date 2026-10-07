@@ -12,6 +12,7 @@ compiler toolchain is installed; native modules come from prebuilt binaries.
 
 | Arg | Default | Description |
 | --- | --- | --- |
+| `NODE_DIGEST` | – (required) | Base image digest; published images use `release-versions/node-debian-digest.txt` |
 | `NODE_VERSION` | `24` | Node.js major, picks the `node:<v>-trixie-slim` base |
 | `STRAPI_VERSION` | `5.52.2` | Strapi CLI version; published images use `release-versions/strapi-latest.txt` |
 | `VCS_REF` | `unknown` | Commit SHA, written to `org.opencontainers.image.revision` |
@@ -19,9 +20,18 @@ compiler toolchain is installed; native modules come from prebuilt binaries.
 
 ## User
 
-Runs as **root** — unlike the Alpine variant, no non-root user is set up.
-`/srv/app` is owned by `1000:1000`, so `--user 1000:1000` (or `user:` in
-Compose) works if you want to drop privileges.
+Runs as the base image's non-root user `node`, uid `1000` / gid `1000`, which
+owns `/srv/app`. A bind-mounted host directory must be writable by it —
+`sudo chown -R 1000:1000 ./app` — or override with `--user` to match the
+mount's owner. If `/srv/app` is not writable, the entrypoint stops with the
+`chown` to run.
+
+Images published before the switch ran as root, so a volume they created is
+root-owned. Hand it over once:
+
+```shell
+docker run --rm -v <volume>:/srv/app alpine chown -R 1000:1000 /srv/app
+```
 
 ## Admin panel build
 

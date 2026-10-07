@@ -42,18 +42,32 @@ services:
       - ./app:/srv/app # scaffolded here on first boot, reused after
 ```
 
+Both variants run unprivileged, so a bind-mounted directory must be writable
+by the image's user. Create it first and hand it over — uid `100` (gid `101`) for
+alpine, `1000` for debian-slim (`sudo chown -R 1000:1000 ./app`). The entrypoint
+stops with this hint if it cannot write to `/srv/app`.
+
 Runnable examples: [SQLite](https://github.com/mainman94/docker-strapi/tree/main/examples/strapi-sqlite) · [PostgreSQL](https://github.com/mainman94/docker-strapi/tree/main/examples/strapi-postgres).
 
 ## Tags
 
 | Tag | Base | Runs as | Notes |
 | --- | --- | --- | --- |
-| `alpine-latest` | `node:24-alpine` | `appuser` (non-root) | Smallest. Recommended. |
-| `alpine-<version>` | `node:24-alpine` | `appuser` (non-root) | Pinned to a Strapi release. |
-| `debian-slim-latest` | `node:24-trixie-slim` | `root` | glibc, for native modules Alpine trips on. |
-| `debian-slim-<version>` | `node:24-trixie-slim` | `root` | Pinned to a Strapi release. |
+| `alpine-latest` | `node:24-alpine` | `appuser` (uid 100) | Smallest. Recommended. |
+| `alpine-<version>` | `node:24-alpine` | `appuser` (uid 100) | Pinned to a Strapi release. |
+| `alpine-<version>-r<run>` | `node:24-alpine` | `appuser` (uid 100) | Immutable. |
+| `debian-slim-latest` | `node:24-trixie-slim` | `node` (uid 1000) | glibc, for native modules Alpine trips on. |
+| `debian-slim-<version>` | `node:24-trixie-slim` | `node` (uid 1000) | Pinned to a Strapi release. |
+| `debian-slim-<version>-r<run>` | `node:24-trixie-slim` | `node` (uid 1000) | Immutable. |
 
-`<version>` is the upstream Strapi version, e.g. `alpine-5.52.3`.
+`<version>` is the upstream Strapi version, e.g. `alpine-5.52.3`. The
+`<version>` tag moves when the `node:24` base image is rebuilt under the same
+Strapi release; `-r<run>` (the publish run number) never moves. Pin that one,
+or a digest, when you need exactly the image you tested.
+
+> **Upgrading debian-slim from an image before the non-root switch:** those
+> ran as root, so the existing volume is root-owned. Hand it over once:
+> `docker run --rm -v <volume>:/srv/app alpine chown -R 1000:1000 /srv/app`.
 
 Platforms: `linux/amd64`, `linux/arm64`. Every published image carries an
 SBOM and provenance attestation, is signed with cosign (keyless, verify with
@@ -144,21 +158,34 @@ CMD ["yarn", "start"]
 ## Building locally
 
 ```shell
+make build VARIANT=alpine
+make smoke VARIANT=alpine
+```
+
+or by hand:
+
+```shell
 docker build -t strapi-alpine-test \
   --build-arg STRAPI_VERSION="$(cat release-versions/strapi-latest.txt)" \
+  --build-arg NODE_DIGEST="$(cat release-versions/node-alpine-digest.txt)" \
   images/strapi-alpine
 ./smoke-test.sh strapi-alpine-test
 ```
 
-Build args: `NODE_VERSION` (default `24`), `STRAPI_VERSION`, plus `VCS_REF`
-and `BUILD_DATE` for the OCI labels.
+Build args: `NODE_DIGEST` (required — the base image is pinned by digest),
+`NODE_VERSION` (default `24`), `STRAPI_VERSION`, plus `VCS_REF` and
+`BUILD_DATE` for the OCI labels.
 
 ## Releases
 
-A daily workflow reads the latest Strapi version and the pinned `node:24`
-digests into `release-versions/`. Any change there triggers a build of both
-variants for both platforms, a smoke test on amd64, a push to Docker Hub and a
-GitHub release. Nothing is pushed that did not boot successfully first.
+A daily workflow reads the latest Strapi version from npm and the current
+`node:24` digests into `release-versions/` and opens a pull request for it,
+which merges once CI passes; the Dockerfiles build from exactly those digests.
+A change there on `main` triggers a build of both variants for
+both platforms, a smoke test, a push to Docker Hub, a second smoke test of the
+pushed images on native amd64 and arm64, and a GitHub release. Nothing is
+pushed that did not boot successfully first, and nothing is released that did
+not boot after the push.
 
 ## Contributing
 

@@ -63,19 +63,20 @@ Four checks must pass before a PR can merge: `lint (alpine)`, `lint (debian)`,
 `build (alpine)` and `build (debian)`. The build jobs include the smoke test, so
 nothing merges that did not boot.
 
-The release workflows push straight to `main` with a PAT — that push is what
-triggers a publish, and a required check cannot have run for a commit that does
-not exist yet — so repository admins bypass the ruleset. Every pull request is
-still gated.
+The release workflows go through the same gate: they open a pull request and
+enable auto-merge, so a release lands only after the four checks pass. Nothing
+bypasses the ruleset.
 
 ## Releases
 
 `release-versions/strapi-latest.txt` drives everything. A daily workflow
-bumps it from upstream Strapi; a push to any file in `release-versions/`
-triggers `publish-docker-images.yml`, which builds both variants for
-`linux/amd64` and `linux/arm64`, smoke-tests amd64, pushes to Docker Hub and
+reads the latest Strapi version from npm and the current `node:24` digests and
+opens a pull request (`release/auto`) with auto-merge on. Once it merges, the
+change on `main` triggers `publish-docker-images.yml`, which builds both
+variants for `linux/amd64` and `linux/arm64`, smoke-tests them, pushes to
+Docker Hub, smoke-tests the pushed images natively on both architectures and
 cuts a GitHub release. Use the **Create new release manually** workflow to pin
-a specific Strapi version.
+a specific Strapi version; it opens a pull request the same way.
 
 Every published image is signed with cosign (keyless) and carries an SBOM and a
 provenance attestation. The verify command is in

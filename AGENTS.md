@@ -3,9 +3,11 @@
 Docker images for Strapi v5, in two variants: Alpine and Debian-slim. There is
 no application code here — only Dockerfiles, entrypoints, examples and CI.
 
-`release-versions/` drives releases: a push to any file in it triggers
-`publish-docker-images.yml`, which builds both variants for amd64 and arm64,
-smoke-tests amd64, pushes to Docker Hub and cuts a GitHub release. A typo in
+`release-versions/` drives releases: a push to any file in it **on `main`**
+triggers `publish-docker-images.yml`, which builds both variants for amd64 and
+arm64, smoke-tests amd64, pushes to Docker Hub, smoke-tests the pushed images
+natively on amd64 and arm64, and cuts a GitHub release. The Dockerfiles build
+`FROM node:24-<variant>@<digest>` with the digest from those files. A typo in
 those files therefore publishes a broken image.
 
 `CONTRIBUTING.md` is the human-facing version of this; it covers PR etiquette
@@ -63,8 +65,9 @@ Two hooks cover the workflows themselves, which matters here because a
 workflow in this repo publishes public images: **`actionlint`** (schema,
 expressions, and the shell in `run:` blocks, using the pinned shellcheck) and
 **`zizmor`** (CI/CD security patterns). zizmor's ignores live in
-`.github/zizmor.yml` with their reasons — the two PAT-checkout workflows have
-to persist credentials, because git-auto-commit-action pushes with them.
+`.github/zizmor.yml` with their reasons. No workflow persists checkout
+credentials: the release workflows hand the PAT to
+`peter-evans/create-pull-request` directly.
 
 Every action reference is pinned to a **commit SHA** with the tag in a
 trailing comment; `helpers:pinGitHubActionDigests` keeps the digests current.
@@ -96,7 +99,7 @@ an image came from this repo:
 
 ```shell
 cosign verify docker.io/dockerha08/strapi:alpine-latest \
-  --certificate-identity-regexp '^https://github.com/mainman94/docker-strapi/' \
+  --certificate-identity https://github.com/mainman94/docker-strapi/.github/workflows/publish-docker-images.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -127,11 +130,18 @@ and `build (debian)`. The contexts are **job names** including the matrix leg �
 the ruleset lives in the `homelab` repo, so renaming a job or a matrix value in
 `ci.yml` without updating it there leaves every PR permanently `blocked`.
 
-Repository admins bypass the ruleset, on purpose:
-`auto-check-new-releases.yml` and `manual-release.yml` push straight to `main`
-with a PAT, and that push is what triggers a publish. A required status check
-would reject it — the checks cannot have run for a commit that does not exist
-yet. Pull requests are still fully gated.
+The release secrets (`DOCKER_TOKEN`, `PAT`) belong in the `release`
+environment, which only `main` may deploy to; every job that uses one declares
+`environment: release`.
+
+**Nothing bypasses the ruleset, release automation included.**
+`auto-check-new-releases.yml` and `manual-release.yml` open a pull request
+(`release/auto`, `release/manual`) with the PAT and enable auto-merge; it lands
+once the four checks pass, and that merge to `main` is what triggers the
+publish. The PAT is required for this, not just convenient: a pull request
+opened with `GITHUB_TOKEN` would not trigger `ci.yml`, so the required checks
+would never report. Auto-merge has to be enabled on the repository (it is, via
+the `homelab` github stack).
 
 ## Conventions
 
@@ -142,8 +152,15 @@ yet. Pull requests are still fully gated.
   package-pinning rules (DL3018, DL3008, DL3016): a rebuild is *supposed* to
   pick up current security patches. Strapi itself is pinned, via
   `STRAPI_VERSION`.
-- **The Debian variant runs as root by design** (DL3002 ignored); the Alpine
-  variant runs as `appuser`.
+- **Neither variant runs as root.** Alpine runs as `appuser` (uid 100, gid
+  101, pinned), Debian as the base image's `node` (uid 1000). A step that needs
+  root goes before the `USER` line.
+- **npm and the dependencies patched into it are exact versions**
+  (`NPM_VERSION`, `NPM_PATCHES` in both Dockerfiles). Renovate bumps them as
+  one group; keep both Dockerfiles on the same values.
+- **The entrypoint approves install scripts for `better-sqlite3` only.** Do
+  not go back to `npm install-scripts approve --all`: it re-opens the install
+  script access npm withholds by default for every transitive dependency.
 - **A behaviour change — a new env var, a new default — updates the variant
   README and the root README in the same PR.**
 - Commit messages: imperative mood, one line.
