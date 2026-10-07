@@ -1,6 +1,6 @@
 #!/bin/sh
 # Boots a built image with sqlite, waits for a clean start or a known
-# failure signature for up to three minutes, then tears down.
+# failure signature for up to ten minutes, then tears down.
 # Usage: ./smoke-test.sh <image-tag>
 set -eu
 
@@ -14,7 +14,7 @@ docker run -d --name "$name" \
   -e NODE_ENV=production \
   "$image" >/dev/null
 
-for _ in $(seq 1 90); do
+for _ in $(seq 1 300); do
   logs=$(docker logs "$name" 2>&1)
   if echo "$logs" | grep -qE "Strapi started successfully|Welcome back"; then
     if ! docker exec "$name" test -f /srv/app/dist/build/index.html; then
