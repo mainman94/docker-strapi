@@ -43,7 +43,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    environment: release
+    # The environment is only here for its secrets and branch policy; the
+    # deployment record is created by `finalize`, after `verify` has passed.
+    environment:
+      name: release
+      deployment: false
     permissions:
       contents: read
       # Keyless signing and provenance both mint an OIDC token; the
@@ -186,7 +190,9 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: release
+    environment:
+      name: release
+      url: https://hub.docker.com/r/dockerha08/strapi/tags
     permissions:
       contents: write # creates the GitHub release
     steps:
