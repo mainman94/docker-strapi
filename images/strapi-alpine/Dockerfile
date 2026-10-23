@@ -38,7 +38,7 @@ RUN apk upgrade --no-cache
 # installs what was reviewed rather than whatever the registry serves that
 # day. Renovate bumps both lines (see renovate.json).
 # renovate: datasource=npm depName=npm
-ARG NPM_VERSION=12.2.0
+ARG NPM_VERSION=12.2.1
 ARG NPM_PATCHES="undici@6.29.1 tar@7.5.22 ip-address@10.7.4 brace-expansion@5.0.12 postcss-selector-parser@7.1.7"
 RUN npm install -g "npm@${NPM_VERSION}" && \
     NPM_DIR="$(npm root -g)/npm/node_modules" && \
