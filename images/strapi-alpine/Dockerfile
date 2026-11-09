@@ -39,7 +39,7 @@ RUN apk upgrade --no-cache
 # day. Renovate bumps both lines (see renovate.json).
 # renovate: datasource=npm depName=npm
 ARG NPM_VERSION=12.2.2
-ARG NPM_PATCHES="undici@6.29.1 tar@7.5.22 ip-address@10.7.6 brace-expansion@5.0.12 postcss-selector-parser@7.1.8"
+ARG NPM_PATCHES="undici@6.29.1 tar@7.5.22 ip-address@10.7.6 brace-expansion@5.0.12 postcss-selector-parser@7.2.0"
 RUN npm install -g "npm@${NPM_VERSION}" && \
     NPM_DIR="$(npm root -g)/npm/node_modules" && \
     TMP="$(mktemp -d)" && \
