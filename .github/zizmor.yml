@@ -2,8 +2,15 @@
 # comments so the reason is written down once, next to the rule, instead of
 # scattered through the workflows.
 #
-# None at the moment: the release workflows used to persist the PAT in the
+# No rule ignores at the moment: the release workflows used to persist the PAT in the
 # checkout for git-auto-commit-action (artipacked). They now hand it to
 # peter-evans/create-pull-request directly and check out without credentials.
 
-rules: {}
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # Floating major tag on purpose: a digest pin makes Renovate open a PR
+        # for every patch release. Everything else stays hash-pinned.
+        jdx/mise-action: ref-pin
+        "*": hash-pin
