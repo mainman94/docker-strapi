@@ -71,7 +71,7 @@ credentials: the release workflows hand the PAT to
 
 Every action reference is pinned to a **commit SHA** with the tag in a
 trailing comment; `helpers:pinGitHubActionDigests` keeps the digests current.
-Do not "tidy" a pin back to `@v7`.
+Do not "tidy" a pin back to `@v7`. The one exception is `jdx/mise-action`, which stays on the floating `@v5` tag (Renovate `pinDigests: false`, zizmor `ref-pin`) because a digest pin there opened a PR for every patch release.
 
 The build and the smoke test stay out of the hooks: they need a daemon and a
 few minutes. `make check` runs them.
