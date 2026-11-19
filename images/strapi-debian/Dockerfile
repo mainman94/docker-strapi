@@ -42,15 +42,19 @@ RUN apt-get update && \
 # day. Renovate bumps both lines (see renovate.json).
 # renovate: datasource=npm depName=npm
 ARG NPM_VERSION=12.2.3
-ARG NPM_PATCHES="undici@6.29.1 tar@7.5.23 ip-address@10.7.6 brace-expansion@5.0.13 postcss-selector-parser@7.2.1"
+ARG NPM_PATCHES="undici@6.29.1 tar@7.5.23 ip-address@10.7.6 brace-expansion@5.0.13 postcss-selector-parser@7.2.1 glob@14.0.6 minimatch@11.0.8 path-scurry@3.0.0 @isaacs/nonrecursive-glob-match@1.1.0"
 RUN npm install -g "npm@${NPM_VERSION}" && \
     NPM_DIR="$(npm root -g)/npm/node_modules" && \
     TMP="$(mktemp -d)" && \
+    # Pack all before swapping any: a swapped package can need another one
+    # (glob 14 needs path-scurry 3) and npm itself breaks in between.
+    npm pack --pack-destination "${TMP:?}" ${NPM_PATCHES} && \
     for spec in ${NPM_PATCHES}; do \
       pkg="${spec%@*}" && \
-      npm pack --pack-destination "${TMP:?}" "$spec" && \
+      case "$pkg" in @*/*) s="${pkg#@}" && name="${s%%/*}-${s#*/}" ;; *) name="$pkg" ;; esac && \
+      tgz="$name-${spec##*@}.tgz" && \
       rm -rf "${NPM_DIR:?}/$pkg" && mkdir -p "${NPM_DIR:?}/$pkg" && \
-      tar -xzf "$TMP/$pkg"-*.tgz -C "${NPM_DIR:?}/$pkg" --strip-components=1 ; \
+      tar -xzf "$TMP/$tgz" -C "${NPM_DIR:?}/$pkg" --strip-components=1 || exit 1; \
     done && \
     rm -rf "${TMP:?}"
 
