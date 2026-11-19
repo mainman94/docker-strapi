@@ -35,7 +35,7 @@
     {
       "description": "npm's vendored deps must stay on the major npm bundles; a new major is a manual decision",
       "matchFileNames": ["images/strapi-*/Dockerfile"],
-      "matchDepNames": ["undici", "tar", "ip-address", "brace-expansion", "postcss-selector-parser"],
+      "matchDepNames": ["undici", "tar", "ip-address", "brace-expansion", "postcss-selector-parser", "glob", "minimatch", "path-scurry"],
       "matchUpdateTypes": ["major"],
       "enabled": false
     },
