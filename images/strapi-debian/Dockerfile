@@ -42,7 +42,7 @@ RUN apt-get update && \
 # day. Renovate bumps both lines (see renovate.json).
 # renovate: datasource=npm depName=npm
 ARG NPM_VERSION=12.2.3
-ARG NPM_PATCHES="undici@6.29.1 tar@7.5.23 ip-address@10.7.6 brace-expansion@5.0.13 postcss-selector-parser@7.2.1 glob@14.0.6 minimatch@11.0.9 path-scurry@3.0.0 @isaacs/nonrecursive-glob-match@1.1.0"
+ARG NPM_PATCHES="undici@6.29.1 tar@7.5.23 ip-address@10.7.6 brace-expansion@5.1.0 postcss-selector-parser@7.2.1 glob@14.0.6 minimatch@11.0.9 path-scurry@3.0.0 @isaacs/nonrecursive-glob-match@1.1.0"
 RUN npm install -g "npm@${NPM_VERSION}" && \
     NPM_DIR="$(npm root -g)/npm/node_modules" && \
     TMP="$(mktemp -d)" && \
